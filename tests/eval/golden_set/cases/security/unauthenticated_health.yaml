@@ -1,0 +1,12 @@
+id: security-unauthenticated-health
+category: security
+tier: fast
+tags: [security, auth, health]
+description: >
+  Health and ready endpoints must work without credentials when API_KEY is unset.
+input:
+  path: /health
+  method: GET
+expect:
+  security:
+    check_type: unauthenticated_access

@@ -1,0 +1,17 @@
+id: contract-extracted-entities-minimal
+category: happy
+tier: fast
+tags: [contract, regulation, entities]
+description: >
+  ExtractedEntities with empty regulations list is valid (irrelevant documents).
+input: {}
+expect:
+  contract:
+    model: aria.contracts.regulation.ExtractedEntities
+    required_fields:
+      - source_document_hash
+      - schema_version
+    schema_version: "0.1.0"
+    fixture_data:
+      source_document_hash: "golden-hash-001"
+      regulations: []

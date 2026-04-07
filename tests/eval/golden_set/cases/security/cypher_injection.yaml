@@ -1,0 +1,11 @@
+id: security-cypher-injection
+category: security
+tier: fast
+tags: [security, cypher, injection]
+description: >
+  Named Cypher queries use parameterized templates; user strings cannot mutate
+  the query text.
+input: {}
+expect:
+  security:
+    check_type: cypher_parameterized

@@ -1,0 +1,21 @@
+id: edge-impact-gaps-normalize
+category: edge
+tier: fast
+tags: [contract, impact, edge_case, normalization]
+description: >
+  ImpactReport with total_requirements=0 but 3 gaps: validator aligns totals
+  to gap count, producing CRITICAL risk.
+input: {}
+expect:
+  contract:
+    model: aria.contracts.impact.ImpactReport
+    required_fields:
+      - regulation_id
+      - regulation_title
+      - total_requirements
+    fixture_data:
+      regulation_id: r
+      regulation_title: t
+      total_requirements: 0
+      coverage_summary:
+        gap: 3

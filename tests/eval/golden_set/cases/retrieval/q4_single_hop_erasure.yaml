@@ -1,0 +1,14 @@
+id: retrieval-q4
+category: happy
+tier: medium
+tags: [vector_rag, single_hop, gdpr]
+description: >
+  Single-hop factual question -- vector RAG should handle this well.
+input:
+  question: "What is the right to erasure under GDPR?"
+  retrieved_context: ""
+expect:
+  retrieval:
+    expected_components:
+      - article_text
+    requires_multi_hop: false

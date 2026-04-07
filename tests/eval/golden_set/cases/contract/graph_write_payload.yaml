@@ -1,0 +1,22 @@
+id: contract-graph-write-payload
+category: happy
+tier: fast
+tags: [contract, graph, payload]
+description: >
+  GraphWritePayload validates with a minimal node set and empty edges.
+input: {}
+expect:
+  contract:
+    model: aria.contracts.graph_entities.GraphWritePayload
+    required_fields:
+      - nodes
+      - edges
+      - schema_version
+    schema_version: "0.1.0"
+    fixture_data:
+      nodes:
+        - label: Team
+          properties:
+            id: t1
+            name: Test Team
+      edges: []

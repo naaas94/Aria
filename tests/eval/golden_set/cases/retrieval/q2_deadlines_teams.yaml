@@ -1,0 +1,16 @@
+id: retrieval-q2
+category: happy
+tier: medium
+tags: [graphrag, multi_hop, deadlines]
+description: >
+  Requires regulation -> article -> deadline + requirement -> system -> team.
+input:
+  question: "What are all the compliance deadlines for the EU AI Act and which teams are responsible?"
+  retrieved_context: ""
+expect:
+  retrieval:
+    expected_components:
+      - deadline_date
+      - article_number
+      - team_name
+    requires_multi_hop: true

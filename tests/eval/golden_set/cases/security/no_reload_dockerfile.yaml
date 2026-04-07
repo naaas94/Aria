@@ -1,0 +1,10 @@
+id: security-no-reload-dockerfile
+category: security
+tier: fast
+tags: [security, dockerfile, ops]
+description: >
+  Dockerfile must not contain --reload (debug/auto-reload in production).
+input: {}
+expect:
+  security:
+    check_type: no_reload_in_dockerfile

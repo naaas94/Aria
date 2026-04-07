@@ -1,0 +1,36 @@
+id: trace-golden-impact-query
+category: happy
+tier: fast
+tags: [trace, impact, golden]
+description: >
+  Golden impact query flow: supervisor -> impact_analyzer -> report_generator -> end.
+input:
+  trace_id: golden-impact-001
+  steps:
+    - node_name: supervisor
+      input_state: {regulation_id: reg-gdpr}
+      output_state: {intent: impact_query}
+      duration_ms: 8.0
+    - node_name: impact_analyzer
+      input_state: {}
+      output_state: {impact_report: {}}
+      tool_calls: [impact_by_regulation]
+      duration_ms: 200.0
+    - node_name: report_generator
+      input_state: {}
+      output_state: {final_report: "..."}
+      duration_ms: 90.0
+    - node_name: end
+      input_state: {}
+      output_state: {}
+      duration_ms: 1.0
+expect:
+  trace:
+    expected_sequence:
+      - supervisor
+      - impact_analyzer
+      - report_generator
+      - end
+    max_steps: 10
+    required_tools: [impact_by_regulation]
+    must_not_have_error: true

@@ -1,0 +1,29 @@
+id: trace-adv-wrong-order
+category: behavior_must_not
+tier: fast
+tags: [trace, adversarial, wrong_order]
+description: >
+  Report generator runs before supervisor -- impossible in correct routing.
+input:
+  trace_id: adv-wrong-order-001
+  steps:
+    - node_name: report_generator
+      input_state: {}
+      output_state: {}
+      duration_ms: 5.0
+    - node_name: supervisor
+      input_state: {}
+      output_state: {}
+      duration_ms: 5.0
+    - node_name: end
+      input_state: {}
+      output_state: {}
+      duration_ms: 1.0
+expect:
+  trace:
+    forbidden_nodes: []
+    # First node must be supervisor in any valid flow -- this trace violates that
+    expected_sequence:
+      - supervisor
+      - report_generator
+      - end

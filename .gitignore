@@ -27,3 +27,6 @@ htmlcov/
 
 neo4j_data/
 chroma_data/
+
+golden_report.json
+golden_report.xml

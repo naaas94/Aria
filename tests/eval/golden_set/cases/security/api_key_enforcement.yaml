@@ -1,0 +1,11 @@
+id: security-api-key-enforcement
+category: security
+tier: fast
+tags: [security, auth, api_key]
+description: >
+  When API_KEY is set, data-plane routes require X-API-Key header; health
+  bypasses the check.
+input: {}
+expect:
+  security:
+    check_type: api_key_enforcement

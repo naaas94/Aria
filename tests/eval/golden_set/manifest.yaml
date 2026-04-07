@@ -1,0 +1,173 @@
+# Golden-set manifest — index of all evaluation cases.
+#
+# Each entry references a YAML case file under cases/.  The loader validates
+# that every manifest id has a corresponding file and vice-versa.
+#
+# Categories: happy | edge | behavior_must | behavior_must_not | security
+# Tiers:      fast  | medium | slow
+
+version: "1.0"
+
+cases:
+  # -- Retrieval (medium tier, from EVAL_QUESTIONS q1-q5) --------------------
+  - id: retrieval-q1
+    file: retrieval/q1_multi_hop_ai_act_gaps.yaml
+    category: happy
+    tier: medium
+
+  - id: retrieval-q2
+    file: retrieval/q2_deadlines_teams.yaml
+    category: happy
+    tier: medium
+
+  - id: retrieval-q3
+    file: retrieval/q3_cross_regulation.yaml
+    category: happy
+    tier: medium
+
+  - id: retrieval-q4
+    file: retrieval/q4_single_hop_erasure.yaml
+    category: happy
+    tier: medium
+
+  - id: retrieval-q5
+    file: retrieval/q5_systems_data_requirements.yaml
+    category: happy
+    tier: medium
+
+  # -- Trace: golden paths (fast) -------------------------------------------
+  - id: trace-golden-ingestion
+    file: trace/golden_ingestion.yaml
+    category: happy
+    tier: fast
+
+  - id: trace-golden-impact-query
+    file: trace/golden_impact_query.yaml
+    category: happy
+    tier: fast
+
+  - id: trace-golden-gap-analysis
+    file: trace/golden_gap_analysis.yaml
+    category: happy
+    tier: fast
+
+  # -- Trace: error paths (fast) --------------------------------------------
+  - id: trace-error-llm-failure
+    file: trace/error_llm_failure.yaml
+    category: edge
+    tier: fast
+
+  - id: trace-error-entity-extraction
+    file: trace/error_entity_extraction.yaml
+    category: edge
+    tier: fast
+
+  # -- Trace: loop / timeout (fast) -----------------------------------------
+  - id: trace-loop-entity-extractor
+    file: trace/loop_entity_extractor.yaml
+    category: behavior_must_not
+    tier: fast
+
+  - id: trace-timeout-graph-builder
+    file: trace/timeout_graph_builder.yaml
+    category: edge
+    tier: fast
+
+  # -- Trace: adversarial (fast) --------------------------------------------
+  - id: trace-adv-hot-loop
+    file: trace/adv_hot_loop.yaml
+    category: behavior_must_not
+    tier: fast
+
+  - id: trace-adv-unknown-nodes
+    file: trace/adv_unknown_nodes.yaml
+    category: behavior_must_not
+    tier: fast
+
+  - id: trace-adv-supervisor-spam
+    file: trace/adv_supervisor_spam.yaml
+    category: behavior_must_not
+    tier: fast
+
+  - id: trace-adv-wrong-order
+    file: trace/adv_wrong_order.yaml
+    category: behavior_must_not
+    tier: fast
+
+  - id: trace-adv-tool-explosion
+    file: trace/adv_tool_explosion.yaml
+    category: behavior_must_not
+    tier: fast
+
+  # -- Security (fast) ------------------------------------------------------
+  - id: security-cypher-injection
+    file: security/cypher_injection.yaml
+    category: security
+    tier: fast
+
+  - id: security-mcp-error-disclosure
+    file: security/mcp_error_disclosure.yaml
+    category: security
+    tier: fast
+
+  - id: security-no-reload-dockerfile
+    file: security/no_reload_dockerfile.yaml
+    category: security
+    tier: fast
+
+  - id: security-openapi-paths
+    file: security/openapi_paths.yaml
+    category: security
+    tier: fast
+
+  - id: security-unauthenticated-health
+    file: security/unauthenticated_health.yaml
+    category: security
+    tier: fast
+
+  - id: security-api-key-enforcement
+    file: security/api_key_enforcement.yaml
+    category: security
+    tier: fast
+
+  - id: security-a2a-secret
+    file: security/a2a_secret.yaml
+    category: security
+    tier: fast
+
+  - id: security-supply-chain
+    file: security/supply_chain.yaml
+    category: security
+    tier: fast
+
+  # -- Contract (fast) -------------------------------------------------------
+  - id: contract-impact-report-roundtrip
+    file: contract/impact_report_roundtrip.yaml
+    category: happy
+    tier: fast
+
+  - id: contract-extracted-entities-minimal
+    file: contract/extracted_entities_minimal.yaml
+    category: happy
+    tier: fast
+
+  - id: contract-graph-write-payload
+    file: contract/graph_write_payload.yaml
+    category: happy
+    tier: fast
+
+  # -- Edge cases (fast) -----------------------------------------------------
+  - id: edge-impact-zero-requirements
+    file: edge/impact_zero_requirements.yaml
+    category: edge
+    tier: fast
+
+  - id: edge-impact-gaps-normalize
+    file: edge/impact_gaps_normalize.yaml
+    category: edge
+    tier: fast
+
+  - id: edge-extracted-entities-empty
+    file: edge/extracted_entities_empty.yaml
+    category: edge
+    tier: fast

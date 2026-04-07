@@ -1,0 +1,36 @@
+id: trace-golden-gap-analysis
+category: happy
+tier: fast
+tags: [trace, gap_analysis, golden]
+description: >
+  Golden gap analysis flow: supervisor -> impact_analyzer -> report_generator -> end.
+input:
+  trace_id: golden-gap-001
+  steps:
+    - node_name: supervisor
+      input_state: {regulation_id: reg-eu-ai-act, query: "List gaps"}
+      output_state: {intent: gap_analysis}
+      duration_ms: 10.0
+    - node_name: impact_analyzer
+      input_state: {}
+      output_state: {}
+      tool_calls: [impact_by_regulation, uncovered_requirements]
+      duration_ms: 150.0
+    - node_name: report_generator
+      input_state: {}
+      output_state: {}
+      duration_ms: 80.0
+    - node_name: end
+      input_state: {}
+      output_state: {}
+      duration_ms: 1.0
+expect:
+  trace:
+    expected_sequence:
+      - supervisor
+      - impact_analyzer
+      - report_generator
+      - end
+    max_steps: 10
+    required_tools: [impact_by_regulation, uncovered_requirements]
+    must_not_have_error: true

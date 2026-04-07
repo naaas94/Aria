@@ -1,0 +1,58 @@
+id: trace-adv-tool-explosion
+category: behavior_must_not
+tier: fast
+tags: [trace, adversarial, tool_explosion]
+description: >
+  Impact analyzer makes 40 tool calls in a single step -- excessive fan-out.
+input:
+  trace_id: adv-tool-explosion-001
+  steps:
+    - node_name: impact_analyzer
+      input_state: {}
+      output_state: {}
+      tool_calls:
+        - impact_by_regulation_chunk_0
+        - impact_by_regulation_chunk_1
+        - impact_by_regulation_chunk_2
+        - impact_by_regulation_chunk_3
+        - impact_by_regulation_chunk_4
+        - impact_by_regulation_chunk_5
+        - impact_by_regulation_chunk_6
+        - impact_by_regulation_chunk_7
+        - impact_by_regulation_chunk_8
+        - impact_by_regulation_chunk_9
+        - impact_by_regulation_chunk_10
+        - impact_by_regulation_chunk_11
+        - impact_by_regulation_chunk_12
+        - impact_by_regulation_chunk_13
+        - impact_by_regulation_chunk_14
+        - impact_by_regulation_chunk_15
+        - impact_by_regulation_chunk_16
+        - impact_by_regulation_chunk_17
+        - impact_by_regulation_chunk_18
+        - impact_by_regulation_chunk_19
+        - impact_by_regulation_chunk_20
+        - impact_by_regulation_chunk_21
+        - impact_by_regulation_chunk_22
+        - impact_by_regulation_chunk_23
+        - impact_by_regulation_chunk_24
+        - impact_by_regulation_chunk_25
+        - impact_by_regulation_chunk_26
+        - impact_by_regulation_chunk_27
+        - impact_by_regulation_chunk_28
+        - impact_by_regulation_chunk_29
+        - impact_by_regulation_chunk_30
+        - impact_by_regulation_chunk_31
+        - impact_by_regulation_chunk_32
+        - impact_by_regulation_chunk_33
+        - impact_by_regulation_chunk_34
+        - impact_by_regulation_chunk_35
+        - impact_by_regulation_chunk_36
+        - impact_by_regulation_chunk_37
+        - impact_by_regulation_chunk_38
+        - impact_by_regulation_chunk_39
+      duration_ms: 500.0
+expect:
+  trace:
+    forbidden_tools:
+      - impact_by_regulation_chunk_39

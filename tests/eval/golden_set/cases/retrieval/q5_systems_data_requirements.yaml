@@ -1,0 +1,17 @@
+id: retrieval-q5
+category: happy
+tier: medium
+tags: [graphrag, multi_hop, data_types]
+description: >
+  Data-type driven traversal: system -> data_types -> matching requirements -> regulations.
+input:
+  question: "List all systems processing personal data and the regulatory requirements that apply to them"
+  retrieved_context: ""
+expect:
+  retrieval:
+    expected_components:
+      - system_name
+      - data_types
+      - requirement_text
+      - regulation_title
+    requires_multi_hop: true

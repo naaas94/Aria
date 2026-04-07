@@ -1,0 +1,23 @@
+id: contract-impact-report-roundtrip
+category: happy
+tier: fast
+tags: [contract, impact, roundtrip]
+description: >
+  ImpactReport validates with minimal required fields and default schema_version.
+input:
+  regulation_id: reg-1
+  regulation_title: GDPR
+  total_requirements: 10
+  affected_systems: []
+  remediation_tasks: []
+  coverage_summary:
+    gap: 2
+    covered: 8
+expect:
+  contract:
+    model: aria.contracts.impact.ImpactReport
+    required_fields:
+      - regulation_id
+      - regulation_title
+      - schema_version
+    schema_version: "0.1.0"

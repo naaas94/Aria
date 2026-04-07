@@ -1,0 +1,19 @@
+id: edge-impact-zero-requirements
+category: edge
+tier: fast
+tags: [contract, impact, edge_case]
+description: >
+  ImpactReport with total_requirements=0 and no gaps must not cause
+  ZeroDivisionError; risk_level should be LOW.
+input: {}
+expect:
+  contract:
+    model: aria.contracts.impact.ImpactReport
+    required_fields:
+      - regulation_id
+      - regulation_title
+    fixture_data:
+      regulation_id: r
+      regulation_title: t
+      total_requirements: 0
+      coverage_summary: {}

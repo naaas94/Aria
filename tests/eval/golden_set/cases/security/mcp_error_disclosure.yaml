@@ -1,0 +1,10 @@
+id: security-mcp-error-disclosure
+category: security
+tier: fast
+tags: [security, mcp, error_disclosure]
+description: >
+  MCP unknown tool returns a generic error code without leaking internals.
+input: {}
+expect:
+  security:
+    check_type: mcp_error_generic
