@@ -3,6 +3,11 @@
 Coordinates parsing, chunking, entity extraction, graph writing, and
 vector indexing with idempotency guarantees. A document that has already
 been ingested (same content hash) is skipped unless forced.
+
+Without ``neo4j_dedup``, deduplication is in-process only (``_ingested_hashes``)
+and is lost on restart. With a connected ``Neo4jClient``, completed pipeline
+hashes are loaded once per process and persisted to ``(:IngestionRecord)`` so
+skips survive restarts; partial runs store ``pipeline_complete=false`` for ops visibility.
 """
 
 from __future__ import annotations
@@ -14,6 +19,8 @@ from pathlib import Path
 from typing import Any
 
 from aria.contracts.regulation import ExtractedEntities
+from aria.graph.client import Neo4jClient
+from aria.graph.ingestion_record import list_complete_content_hashes, upsert_ingestion_progress
 from aria.ingestion.chunker import DocumentChunk, chunk_text
 from aria.ingestion.parsers.html_parser import ParsedHTMLDocument, parse_html
 from aria.ingestion.parsers.pdf_parser import ParsedDocument, parse_pdf
@@ -48,6 +55,21 @@ class IngestionResult:
 
 
 _ingested_hashes: set[str] = set()
+_dedup_hydrated_from_neo4j: bool = False
+
+
+async def _hydrate_dedup_from_neo4j(client: Neo4jClient) -> None:
+    """Load ``pipeline_complete`` hashes from Neo4j into the in-process set once."""
+    global _dedup_hydrated_from_neo4j
+    if _dedup_hydrated_from_neo4j:
+        return
+    try:
+        for h in await list_complete_content_hashes(client):
+            _ingested_hashes.add(h)
+    except Exception as exc:
+        logger.warning("Could not hydrate ingestion dedup from Neo4j: %s", exc)
+    finally:
+        _dedup_hydrated_from_neo4j = True
 
 
 def _detect_format(path: Path) -> DocumentFormat:
@@ -75,6 +97,7 @@ async def ingest_document(
     entity_extractor: Any | None = None,
     graph_writer: Any | None = None,
     vector_indexer: Any | None = None,
+    neo4j_dedup: Neo4jClient | None = None,
     force: bool = False,
 ) -> IngestionResult:
     """Run the full ingestion pipeline for a single document.
@@ -84,6 +107,7 @@ async def ingest_document(
         entity_extractor: Callable(text, hash) -> ExtractedEntities. If None, extraction is skipped.
         graph_writer: Callable(ExtractedEntities) -> GraphWriteStatus. If None, graph write is skipped.
         vector_indexer: Callable(chunks) -> bool. If None, vector indexing is skipped.
+        neo4j_dedup: If set, durable idempotency and progress via ``IngestionRecord`` nodes.
         force: If True, re-ingest even if the content hash was seen before.
     """
     path = Path(path)
@@ -101,6 +125,9 @@ async def ingest_document(
         return IngestionResult(status=IngestionStatus.PARSE_ERROR, errors=[str(exc)])
 
     result.document_hash = content_hash
+
+    if neo4j_dedup and not force:
+        await _hydrate_dedup_from_neo4j(neo4j_dedup)
 
     if not force and content_hash in _ingested_hashes:
         logger.info("Skipping duplicate document: %s (hash=%s)", path.name, content_hash[:12])
@@ -150,9 +177,28 @@ async def ingest_document(
     if result.status == IngestionStatus.SUCCESS:
         _ingested_hashes.add(content_hash)
 
+    if neo4j_dedup:
+        try:
+            has_graph = graph_writer is not None
+            has_vector = vector_indexer is not None
+            graph_ok = result.graph_written if has_graph else True
+            vector_ok = result.vector_indexed if has_vector else True
+            pipeline_done = result.status == IngestionStatus.SUCCESS
+            await upsert_ingestion_progress(
+                neo4j_dedup,
+                content_hash,
+                graph_indexed=graph_ok,
+                vector_indexed=vector_ok,
+                pipeline_complete=pipeline_done,
+            )
+        except Exception as exc:
+            logger.warning("Failed to persist IngestionRecord for %s: %s", content_hash[:12], exc)
+
     return result
 
 
 def reset_ingestion_state() -> None:
     """Clear the in-memory set of ingested hashes (for testing)."""
+    global _dedup_hydrated_from_neo4j
     _ingested_hashes.clear()
+    _dedup_hydrated_from_neo4j = False

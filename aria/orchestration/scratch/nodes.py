@@ -28,7 +28,7 @@ class ToolPorts(Protocol):
 
 
 async def supervisor_node(state: "ARIAState", tools: ToolPorts) -> "ARIAState":
-    """Route based on what's in state: ingestion, impact query, or end."""
+    """Route based on what's in state: ingestion, impact query, free query, or end."""
     state.record_step("supervisor")
     logger.info("Supervisor: classifying intent")
 
@@ -39,7 +39,7 @@ async def supervisor_node(state: "ARIAState", tools: ToolPorts) -> "ARIAState":
     elif state.is_impact_query:
         logger.info("Supervisor: routing to impact analyzer")
     elif state.is_free_query:
-        logger.info("Supervisor: routing to impact analyzer (free query)")
+        logger.info("Supervisor: routing to free query (vector search)")
     else:
         logger.info("Supervisor: no actionable input — routing to end")
 
@@ -47,23 +47,42 @@ async def supervisor_node(state: "ARIAState", tools: ToolPorts) -> "ARIAState":
 
 
 async def ingestion_node(state: "ARIAState", tools: ToolPorts) -> "ARIAState":
-    """Parse document and extract entities via LLM."""
+    """Validate ingest input; entity extraction runs in ``entity_extractor_node``."""
     state.record_step("ingestion")
-    logger.info("Ingestion: processing document")
+    logger.info("Ingestion: validating document for extraction pipeline")
 
     if not state.raw_document:
         state.error = "Ingestion node received no raw_document"
         return state
 
+    return state
+
+
+async def free_query_node(state: "ARIAState", tools: ToolPorts) -> "ARIAState":
+    """Ad-hoc questions via vector search (no regulation_id required)."""
+    state.record_step("free_query")
+    logger.info("Free query: vector search")
+
+    q = (state.query or "").strip()
+    if not q:
+        state.error = "Free query node received no query"
+        return state
+
     try:
-        result = await tools.extract_entities(
-            state.raw_document, state.document_hash or "unknown"
-        )
-        from aria.contracts.regulation import ExtractedEntities
-        state.extracted_entities = ExtractedEntities.model_validate(result)
-        logger.info("Ingestion: extracted %d regulations", len(state.extracted_entities.regulations))
+        hits = await tools.vector_search(q, top_k=8)
+        if not hits:
+            state.final_report = (
+                "No vector matches were returned for this query. "
+                "Ensure documents are indexed or rephrase the question."
+            )
+        else:
+            lines: list[str] = []
+            for i, h in enumerate(hits, 1):
+                snippet = h.get("text") or h.get("content") or str(h)
+                lines.append(f"{i}. {snippet[:500]}")
+            state.final_report = "\n".join(lines)
     except Exception as exc:
-        state.error = f"Entity extraction failed: {exc}"
+        state.error = f"Vector search failed: {exc}"
         logger.error(state.error)
 
     return state
@@ -83,6 +102,10 @@ async def entity_extractor_node(state: "ARIAState", tools: ToolPorts) -> "ARIASt
         )
         from aria.contracts.regulation import ExtractedEntities
         state.extracted_entities = ExtractedEntities.model_validate(result)
+        logger.info(
+            "Entity extractor: extracted %d regulations",
+            len(state.extracted_entities.regulations),
+        )
     except Exception as exc:
         state.error = f"Entity extraction failed: {exc}"
 

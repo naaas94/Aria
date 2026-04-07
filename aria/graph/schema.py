@@ -42,6 +42,10 @@ def generate_constraint_statements() -> list[str]:
             f"CREATE CONSTRAINT {name} IF NOT EXISTS "
             f"FOR (n:{label.value}) REQUIRE n.{key} IS UNIQUE"
         )
+    stmts.append(
+        "CREATE CONSTRAINT ingestion_record_content_hash IF NOT EXISTS "
+        "FOR (r:IngestionRecord) REQUIRE r.content_hash IS UNIQUE"
+    )
     return stmts
 
 

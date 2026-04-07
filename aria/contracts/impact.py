@@ -8,7 +8,9 @@ from __future__ import annotations
 from datetime import date
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from aria.contracts._strict import enforce_schema_version_if_configured
 
 SCHEMA_VERSION = "0.1.0"
 
@@ -39,6 +41,12 @@ class AffectedAsset(BaseModel):
     covering_policy_title: str | None = None
 
 
+class ImpactAnalysisRequest(BaseModel):
+    """Input to the impact analyzer agent — scopes graph traversal to one regulation."""
+
+    regulation_id: str = Field(..., description="Regulation node id in the knowledge graph")
+
+
 class RemediationTask(BaseModel):
     """A concrete action item for addressing a compliance gap."""
 
@@ -63,6 +71,17 @@ class ImpactReport(BaseModel):
     remediation_tasks: list[RemediationTask] = Field(default_factory=list)
     coverage_summary: dict[CoverageStatus, int] = Field(default_factory=dict)
 
+    @model_validator(mode="after")
+    def _align_total_requirements_with_gap_count(self) -> ImpactReport:
+        """If upstream left ``total_requirements`` at 0 but reported gaps, align counts.
+
+        Avoids a misleading risk ratio (e.g. gaps / 1) when totals were omitted.
+        """
+        gaps = self.coverage_summary.get(CoverageStatus.GAP, 0)
+        if gaps > 0 and self.total_requirements == 0:
+            self.total_requirements = gaps
+        return self
+
     @property
     def gap_count(self) -> int:
         return self.coverage_summary.get(CoverageStatus.GAP, 0)
@@ -71,9 +90,15 @@ class ImpactReport(BaseModel):
     def risk_level(self) -> RiskLevel:
         if self.gap_count == 0:
             return RiskLevel.LOW
-        ratio = self.gap_count / max(self.total_requirements, 1)
+        denom = max(self.total_requirements, self.gap_count, 1)
+        ratio = self.gap_count / denom
         if ratio > 0.5:
             return RiskLevel.CRITICAL
         if ratio > 0.25:
             return RiskLevel.HIGH
         return RiskLevel.MEDIUM
+
+    @model_validator(mode="after")
+    def _strict_schema_version(self) -> ImpactReport:
+        enforce_schema_version_if_configured(self)
+        return self

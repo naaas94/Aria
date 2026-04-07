@@ -46,6 +46,7 @@ class ToolResult(BaseModel):
     success: bool
     data: Any = None
     error: str | None = None
+    error_code: str | None = None
 
 
 class ToolDefinition(BaseModel):
@@ -54,6 +55,10 @@ class ToolDefinition(BaseModel):
     name: str
     description: str
     input_schema: dict[str, Any]
+    output_schema: dict[str, Any] = Field(
+        default_factory=lambda: ToolResult.model_json_schema(),
+        description="JSON Schema for the ToolResult envelope returned by call_tool (data is tool-specific).",
+    )
 
 
 TOOL_DEFINITIONS: list[ToolDefinition] = [

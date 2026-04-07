@@ -158,6 +158,7 @@ def build_seed_entities() -> ExtractedEntities:
 
 async def main() -> None:
     load_dotenv()
+    # Default NEO4J_PASSWORD matches docker-compose dev only — never use on an exposed host.
     client = Neo4jClient(
         uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
         user=os.getenv("NEO4J_USER", "neo4j"),

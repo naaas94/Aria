@@ -63,8 +63,15 @@ class TraceEvaluation:
     issues: list[str] = field(default_factory=list)
 
 
-EXPECTED_INGESTION_FLOW = ["supervisor", "ingestion", "entity_extractor", "graph_builder", "end"]
-EXPECTED_QUERY_FLOW = ["supervisor", "impact_analyzer", "report_generator", "end"]
+from aria.orchestration.scratch.paths import (
+    CANONICAL_SCRATCH_FREE_QUERY_PATH,
+    CANONICAL_SCRATCH_IMPACT_QUERY_PATH,
+    CANONICAL_SCRATCH_INGESTION_PATH_NO_REG,
+)
+
+EXPECTED_INGESTION_FLOW = CANONICAL_SCRATCH_INGESTION_PATH_NO_REG
+EXPECTED_QUERY_FLOW = CANONICAL_SCRATCH_IMPACT_QUERY_PATH
+EXPECTED_FREE_QUERY_FLOW = CANONICAL_SCRATCH_FREE_QUERY_PATH
 
 
 def evaluate_trace(

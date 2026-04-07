@@ -62,40 +62,37 @@ def _merge_edge_cypher(edge: GraphEdge) -> tuple[str, dict[str, Any]]:
 
 
 async def write_payload(client: Neo4jClient, payload: GraphWritePayload) -> GraphWriteStatus:
-    """Write a batch of nodes and edges to Neo4j using MERGE (idempotent)."""
+    """Write a batch of nodes and edges in one Neo4j transaction (commit or full rollback).
+
+    MERGE remains idempotent across separate successful transactions; within one call,
+    either all statements commit or none do.
+    """
     status = GraphWriteStatus()
 
     async with client.session() as session:
-        for node in payload.nodes:
-            try:
-                cypher, params = _merge_node_cypher(node)
-                result = await session.run(cypher, params)
-                summary = await result.consume()
-                status.nodes_created += summary.counters.nodes_created
-                status.nodes_merged += max(
-                    0, 1 - summary.counters.nodes_created
-                )
-            except Exception as exc:
-                msg = f"Node write failed ({node.label}:{node.merge_key}): {exc}"
-                logger.error(msg)
-                status.errors.append(msg)
-
-        for edge in payload.edges:
-            try:
-                cypher, params = _merge_edge_cypher(edge)
-                result = await session.run(cypher, params)
-                summary = await result.consume()
-                status.edges_created += summary.counters.relationships_created
-                status.edges_merged += max(
-                    0, 1 - summary.counters.relationships_created
-                )
-            except Exception as exc:
-                msg = (
-                    f"Edge write failed ({edge.source_label}-[{edge.edge_type}]"
-                    f"->{edge.target_label}): {exc}"
-                )
-                logger.error(msg)
-                status.errors.append(msg)
+        tx = await session.begin_transaction()
+        try:
+            async with tx:
+                for node in payload.nodes:
+                    cypher, params = _merge_node_cypher(node)
+                    result = await tx.run(cypher, params)
+                    summary = await result.consume()
+                    status.nodes_created += summary.counters.nodes_created
+                    status.nodes_merged += max(
+                        0, 1 - summary.counters.nodes_created
+                    )
+                for edge in payload.edges:
+                    cypher, params = _merge_edge_cypher(edge)
+                    result = await tx.run(cypher, params)
+                    summary = await result.consume()
+                    status.edges_created += summary.counters.relationships_created
+                    status.edges_merged += max(
+                        0, 1 - summary.counters.relationships_created
+                    )
+        except Exception as exc:
+            msg = f"Graph write transaction failed: {exc}"
+            logger.error(msg)
+            return GraphWriteStatus(errors=[msg])
 
     return status
 

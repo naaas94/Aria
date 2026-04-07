@@ -1,15 +1,41 @@
-"""LangGraph node definitions — thin wrappers around scratch node functions.
+"""LangGraph node definitions — thin wrappers around scratch behavior.
 
-Each node function operates on a dict state (LangGraph convention) and
-delegates to the identical logic in the scratch implementation. This
-demonstrates that the two implementations share the same behavior.
+Routing functions delegate to ``aria.orchestration.scratch.edges`` so the
+reference graph stays aligned with the scratch engine. Node bodies remain
+lightweight stubs (no real MCP); for full tool behavior use the scratch
+``OrchestrationGraph`` with real ``ToolPorts``.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from aria.contracts.regulation import ExtractedEntities
+from aria.orchestration.scratch import edges as scratch_edges
+from aria.orchestration.scratch.nodes import ToolPorts
 from aria.orchestration.scratch.state import ARIAState
+
+
+class _NoopTools(ToolPorts):
+    """Supervisor/ingestion nodes do not call tools; satisfies the protocol."""
+
+    async def extract_entities(self, text: str, doc_hash: str) -> dict:
+        raise NotImplementedError
+
+    async def write_to_graph(self, entities: dict) -> dict:
+        raise NotImplementedError
+
+    async def index_vectors(self, chunks: list[dict]) -> bool:
+        raise NotImplementedError
+
+    async def query_graph(self, query_name: str, params: dict) -> list[dict]:
+        raise NotImplementedError
+
+    async def vector_search(self, query: str, top_k: int) -> list[dict]:
+        raise NotImplementedError
+
+    async def generate_text(self, messages: list[dict]) -> str:
+        raise NotImplementedError
 
 
 def _wrap_state(state: dict[str, Any]) -> ARIAState:
@@ -23,24 +49,43 @@ def _unwrap_state(state: ARIAState) -> dict[str, Any]:
 
 
 async def supervisor_node(state: dict[str, Any]) -> dict[str, Any]:
+    from aria.orchestration.scratch.nodes import supervisor_node as _sn
+
     s = _wrap_state(state)
-    s.record_step("supervisor")
-    return _unwrap_state(s)
+    out = await _sn(s, _NoopTools())
+    return _unwrap_state(out)
 
 
 async def ingestion_node(state: dict[str, Any]) -> dict[str, Any]:
-    """Ingestion node — marks entity extraction as pending.
+    from aria.orchestration.scratch.nodes import ingestion_node as _in
 
-    In the LangGraph reference, actual tool calls are handled by
-    the LangGraph tool-calling mechanism. Here we simulate the
-    state transition that the scratch implementation performs.
-    """
     s = _wrap_state(state)
-    s.record_step("ingestion")
+    out = await _in(s, _NoopTools())
+    return _unwrap_state(out)
 
+
+async def entity_extractor_node(state: dict[str, Any]) -> dict[str, Any]:
+    """Stub extraction — sets minimal ``ExtractedEntities`` when a document exists."""
+    s = _wrap_state(state)
+    s.record_step("entity_extractor")
     if not s.raw_document:
-        s.error = "Ingestion node received no raw_document"
+        s.error = "Entity extractor received no document"
+        return _unwrap_state(s)
+    s.extracted_entities = ExtractedEntities(
+        source_document_hash=s.document_hash or "unknown",
+        regulations=[],
+    )
+    return _unwrap_state(s)
 
+
+async def free_query_node(state: dict[str, Any]) -> dict[str, Any]:
+    s = _wrap_state(state)
+    s.record_step("free_query")
+    q = (s.query or "").strip()
+    if not q:
+        s.error = "Free query node received no query"
+    else:
+        s.final_report = "[LangGraph reference stub] No vector index wired."
     return _unwrap_state(s)
 
 
@@ -71,39 +116,24 @@ async def report_generator_node(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def route_after_supervisor(state: dict[str, Any]) -> str:
-    """Edge routing function — identical logic to scratch edges."""
-    s = _wrap_state(state)
-    if s.has_error:
-        return "end"
-    if s.is_ingestion_request:
-        return "ingestion"
-    if s.is_impact_query or s.is_free_query:
-        return "impact_analyzer"
-    return "end"
+    return scratch_edges.route_after_supervisor(ARIAState.model_validate(state))
 
 
 def route_after_ingestion(state: dict[str, Any]) -> str:
-    s = _wrap_state(state)
-    if s.has_error:
-        return "end"
-    if s.extracted_entities:
-        return "graph_builder"
-    return "end"
+    return scratch_edges.route_after_ingestion(ARIAState.model_validate(state))
+
+
+def route_after_entity_extractor(state: dict[str, Any]) -> str:
+    return scratch_edges.route_after_entity_extractor(ARIAState.model_validate(state))
+
+
+def route_after_free_query(state: dict[str, Any]) -> str:
+    return scratch_edges.route_after_free_query(ARIAState.model_validate(state))
 
 
 def route_after_graph_builder(state: dict[str, Any]) -> str:
-    s = _wrap_state(state)
-    if s.has_error:
-        return "end"
-    if s.regulation_id:
-        return "impact_analyzer"
-    return "end"
+    return scratch_edges.route_after_graph_builder(ARIAState.model_validate(state))
 
 
 def route_after_impact_analyzer(state: dict[str, Any]) -> str:
-    s = _wrap_state(state)
-    if s.has_error:
-        return "end"
-    if s.impact_report:
-        return "report_generator"
-    return "end"
+    return scratch_edges.route_after_impact_analyzer(ARIAState.model_validate(state))

@@ -6,8 +6,8 @@ and the full parse-chunk-extract flow.
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -131,3 +131,57 @@ class TestIngestionPipeline:
     async def test_missing_file(self):
         result = await ingest_document("/nonexistent/file.pdf")
         assert result.status == IngestionStatus.PARSE_ERROR
+
+
+class TestNeo4jIngestionDedup:
+    """Durable idempotency hooks (mocked Neo4j client)."""
+
+    @pytest.mark.asyncio
+    async def test_hydrated_complete_hash_skips_without_upsert(self, tmp_path: Path) -> None:
+        html_file = tmp_path / "regulation.html"
+        html_file.write_text(SAMPLE_HTML)
+        content_hash = parse_html(SAMPLE_HTML, is_file=False).content_hash
+        mock_neo = MagicMock()
+
+        with (
+            patch(
+                "aria.ingestion.pipeline.list_complete_content_hashes",
+                new_callable=AsyncMock,
+                return_value=[content_hash],
+            ),
+            patch(
+                "aria.ingestion.pipeline.upsert_ingestion_progress",
+                new_callable=AsyncMock,
+            ) as up,
+        ):
+            result = await ingest_document(html_file, neo4j_dedup=mock_neo)
+
+        assert result.status == IngestionStatus.SKIPPED_DUPLICATE
+        up.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_success_calls_upsert_with_pipeline_complete(self, tmp_path: Path) -> None:
+        html_file = tmp_path / "regulation.html"
+        html_file.write_text(SAMPLE_HTML)
+        mock_neo = MagicMock()
+
+        with (
+            patch(
+                "aria.ingestion.pipeline.list_complete_content_hashes",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "aria.ingestion.pipeline.upsert_ingestion_progress",
+                new_callable=AsyncMock,
+            ) as up,
+        ):
+            result = await ingest_document(html_file, neo4j_dedup=mock_neo)
+
+        assert result.status == IngestionStatus.SUCCESS
+        up.assert_awaited_once()
+        _client_arg, hash_arg = up.call_args[0]
+        assert hash_arg == result.document_hash
+        assert up.call_args[1]["pipeline_complete"] is True
+        assert up.call_args[1]["graph_indexed"] is True
+        assert up.call_args[1]["vector_indexed"] is True

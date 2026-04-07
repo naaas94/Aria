@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from aria.orchestration.scratch.edges import (
+    route_after_entity_extractor,
     route_after_graph_builder,
     route_after_impact_analyzer,
     route_after_ingestion,
@@ -95,18 +96,27 @@ class TestEdgeRouting:
         state = ARIAState(error="something broke")
         assert route_after_supervisor(state) == "end"
 
-    def test_ingestion_routes_to_graph_builder(self):
+    def test_ingestion_routes_to_entity_extractor_when_ok(self):
+        state = ARIAState(raw_document="doc")
+        assert route_after_ingestion(state) == "entity_extractor"
+
+    def test_ingestion_routes_to_end_on_error(self):
+        state = ARIAState(error="extraction failed")
+        assert route_after_ingestion(state) == "end"
+
+    def test_entity_extractor_routes_to_graph_builder(self):
         from aria.contracts.regulation import ExtractedEntities
+
         state = ARIAState(
             extracted_entities=ExtractedEntities(
                 source_document_hash="h", regulations=[]
             )
         )
-        assert route_after_ingestion(state) == "graph_builder"
+        assert route_after_entity_extractor(state) == "graph_builder"
 
-    def test_ingestion_routes_to_end_on_error(self):
-        state = ARIAState(error="extraction failed")
-        assert route_after_ingestion(state) == "end"
+    def test_supervisor_routes_free_query(self):
+        state = ARIAState(query="open question")
+        assert route_after_supervisor(state) == "free_query"
 
     def test_impact_routes_to_report_generator(self):
         from aria.contracts.impact import ImpactReport
@@ -157,6 +167,7 @@ class TestOrchestrationExecution:
         assert result.success
         assert "supervisor" in result.node_path
         assert "ingestion" in result.node_path
+        assert "entity_extractor" in result.node_path
         assert "end" in result.node_path
 
     @pytest.mark.asyncio

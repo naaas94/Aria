@@ -2,6 +2,9 @@
 
 ARIAState is the canonical state contract — both the scratch engine and
 the LangGraph reference implementation operate on this exact schema.
+
+Expected node sequences for the default graph live in
+``aria.orchestration.scratch.paths`` (keep in sync with ``edges.EDGE_MAP``).
 """
 
 from __future__ import annotations

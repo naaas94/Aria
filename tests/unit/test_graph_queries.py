@@ -13,7 +13,7 @@ from aria.contracts.graph_entities import (
     NodeLabel,
 )
 from aria.graph.queries import QUERIES, execute_named_query
-from aria.graph.schema import VALID_EDGES, generate_constraint_statements
+from aria.graph.schema import NODE_MERGE_KEYS, VALID_EDGES, generate_constraint_statements
 
 
 class TestNamedQueries:
@@ -55,7 +55,8 @@ class TestNamedQueries:
 class TestSchemaGeneration:
     def test_constraint_statements_generated(self):
         stmts = generate_constraint_statements()
-        assert len(stmts) == len(NodeLabel)
+        # One statement per NODE_MERGE_KEYS label plus IngestionRecord (not in NodeLabel).
+        assert len(stmts) == len(NODE_MERGE_KEYS) + 1
         for stmt in stmts:
             assert stmt.startswith("CREATE CONSTRAINT")
             assert "IF NOT EXISTS" in stmt

@@ -9,7 +9,9 @@ from __future__ import annotations
 from datetime import date
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from aria.contracts._strict import enforce_schema_version_if_configured
 
 SCHEMA_VERSION = "0.1.0"
 
@@ -112,3 +114,8 @@ class ExtractedEntities(BaseModel):
     teams: list[Team] = Field(default_factory=list)
     policy_documents: list[PolicyDocument] = Field(default_factory=list)
     internal_systems: list[InternalSystem] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _strict_schema_version(self) -> ExtractedEntities:
+        enforce_schema_version_if_configured(self)
+        return self
