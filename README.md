@@ -2,6 +2,8 @@
 
 Multi-agent system that ingests regulatory documents, builds a Neo4j knowledge graph, answers multi-hop compliance queries via GraphRAG retrieval, and produces impact/gap analysis against an organisation's internal systems and policies — all orchestrated through a stateful agent graph and exposed over FastAPI.
 
+**Status:** End-to-end pipeline functional with CI and nightly runs. Placeholder mode is the default for safe exploration; live mode requires Neo4j + Chroma + LLM.
+
 ## Architecture
 
 ```
@@ -26,6 +28,24 @@ Multi-agent system that ingests regulatory documents, builds a Neo4j knowledge g
 **Orchestration** — A custom stateful graph engine (`aria.orchestration.scratch`) drives an `ARIAState` through named nodes (supervisor, ingestion chain, entity extraction, graph builder, impact analyser). Nodes must return `ARIAState`; invalid returns set `error` instead of crashing. A LangGraph reference implementation exists under `aria.orchestration.langgraph_reference` for comparison.
 
 **Agents** — Supervisor classifies intent and delegates to specialised agents: `EntityExtractorAgent`, `GraphBuilderAgent`, `IngestionAgent`, `ImpactAnalyzerAgent`, `ReportGeneratorAgent`, each built on a shared `BaseAgent`.
+
+## Evaluation & Testing
+
+ARIA ships with a layered test and evaluation suite — unit, integration, golden-set regression, E2E, security audits, and a human-review eval store.
+
+| Layer | Location | What it covers |
+|-------|----------|----------------|
+| **Unit** | `tests/unit/` | Contracts, graph queries, orchestration, LLM structured output, entity extraction, hybrid retrieval |
+| **Integration** | `tests/integration/` | End-to-end pipeline with live Neo4j + Chroma |
+| **Golden set** | `tests/eval/golden_set/` | YAML cases (retrieval, trace, contract, edge, security) with tiered runs (`fast` / `medium` / `slow`), multi-lens runner, JUnit + JSON reports |
+| **E2E** | `tests/eval/e2e/` | `POST /query` against the running app; placeholder by default, live hybrid path in nightly |
+| **Security** | `tests/eval/test_security_audit.py` | Auth, CORS, body-limit, header, and protocol surface checks |
+| **Eval store** | `tests/eval/eval_store.py` | Append-only JSONL log of eval runs for offline human review |
+| **Trajectory** | `tests/eval/test_trajectory_eval.py` | Agent trace and step-sequence analysis |
+
+**CI** (`.github/workflows/ci.yml`) — matrix across Python 3.12/3.13; runs unit, eval subsets, golden fast tier, API contract, and security tests on every push.
+
+**Nightly** (`.github/workflows/nightly.yml`) — spins up Neo4j + Chroma services, seeds the graph, runs full integration + golden slow tier + eval store, and uploads reports and eval artifacts.
 
 ## Quickstart
 
@@ -69,24 +89,6 @@ Full-stack Docker (API + DBs): `docker compose --profile full up -d`.
 | **Observability** | structlog · prometheus-client |
 | **Build / lock** | hatchling · uv |
 | **Lint / type-check** | ruff · mypy (strict + Pydantic plugin) |
-
-## Evaluation & Testing
-
-ARIA ships with a layered test and evaluation suite — unit, integration, golden-set regression, E2E, security audits, and a human-review eval store.
-
-| Layer | Location | What it covers |
-|-------|----------|----------------|
-| **Unit** | `tests/unit/` | Contracts, graph queries, orchestration, LLM structured output, entity extraction, hybrid retrieval |
-| **Integration** | `tests/integration/` | End-to-end pipeline with live Neo4j + Chroma |
-| **Golden set** | `tests/eval/golden_set/` | YAML cases (retrieval, trace, contract, edge, security) with tiered runs (`fast` / `medium` / `slow`), multi-lens runner, JUnit + JSON reports |
-| **E2E** | `tests/eval/e2e/` | `POST /query` against the running app; placeholder by default, live hybrid path in nightly |
-| **Security** | `tests/eval/test_security_audit.py` | Auth, CORS, body-limit, header, and protocol surface checks |
-| **Eval store** | `tests/eval/eval_store.py` | Append-only JSONL log of eval runs for offline human review |
-| **Trajectory** | `tests/eval/test_trajectory_eval.py` | Agent trace and step-sequence analysis |
-
-**CI** (`.github/workflows/ci.yml`) — matrix across Python 3.12/3.13; runs unit, eval subsets, golden fast tier, API contract, and security tests on every push.
-
-**Nightly** (`.github/workflows/nightly.yml`) — spins up Neo4j + Chroma services, seeds the graph, runs full integration + golden slow tier + eval store, and uploads reports and eval artifacts.
 
 ## HTTP Surface & Operational Behaviour
 
