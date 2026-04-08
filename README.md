@@ -1,6 +1,6 @@
 # ARIA — Automated Regulatory Impact Agent
 
-GraphRAG-powered multi-agent system for regulatory compliance analysis. Ingests regulatory documents, builds a Neo4j knowledge graph, answers multi-hop compliance queries, and routes remediation tasks through a stateful orchestration layer.
+Multi-agent system that ingests regulatory documents, builds a Neo4j knowledge graph, answers multi-hop compliance queries via GraphRAG retrieval, and produces impact/gap analysis against an organisation's internal systems and policies — all orchestrated through a stateful agent graph and exposed over FastAPI.
 
 ## Architecture
 
@@ -15,11 +15,17 @@ GraphRAG-powered multi-agent system for regulatory compliance analysis. Ingests 
                      │  Vectors     │     │  Retrieval   │
                      └──────────────┘     └──────┬───────┘
                                                  │
-                     ┌──────────────┐     ┌──────▼───────┐
-                     │   FastAPI    │◀────│  Multi-Agent  │
-                     │   Interface  │     │  Orchestrator │
-                     └──────────────┘     └──────────────┘
+┌──────────────┐     ┌──────────────┐     ┌──────▼───────┐
+│  MCP / A2A   │◀───▶│   FastAPI    │◀────│  Multi-Agent  │
+│  Protocols   │     │   Interface  │     │  Orchestrator │
+└──────────────┘     └──────────────┘     └──────────────┘
 ```
+
+**Data path** — Documents (PDF, HTML, plain text) enter the ingestion pipeline, get chunked, optionally entity-extracted, then written to Neo4j as a typed graph (regulations, articles, requirements, systems, teams, jurisdictions, deadlines) and indexed in ChromaDB as vector embeddings. Queries hit a hybrid retriever (vector anchors → graph expansion → fusion/reranking) that feeds context to an LLM for grounded answers with source tracing.
+
+**Orchestration** — A custom stateful graph engine (`aria.orchestration.scratch`) drives an `ARIAState` through named nodes (supervisor, ingestion chain, entity extraction, graph builder, impact analyser). Nodes must return `ARIAState`; invalid returns set `error` instead of crashing. A LangGraph reference implementation exists under `aria.orchestration.langgraph_reference` for comparison.
+
+**Agents** — Supervisor classifies intent and delegates to specialised agents: `EntityExtractorAgent`, `GraphBuilderAgent`, `IngestionAgent`, `ImpactAnalyzerAgent`, `ReportGeneratorAgent`, each built on a shared `BaseAgent`.
 
 ## Quickstart
 
@@ -45,47 +51,74 @@ uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
 pytest
 ```
 
-## Key Concepts
-
-| Concept | Location | Documentation |
-|---------|----------|---------------|
-| Knowledge Graph | `aria/graph/` | `docs/01_knowledge_graphs.md` |
-| GraphRAG | `aria/retrieval/` | `docs/03_graphrag_vs_vector_rag.md` |
-| Scratch Orchestration | `aria/orchestration/scratch/` | `docs/08_stateful_graphs_from_scratch.md` |
-| MCP Protocol | `aria/protocols/mcp/` | `docs/05_mcp_protocol.md` |
-| A2A Protocol | `aria/protocols/a2a/` | `docs/06_a2a_protocol.md` |
-| LangGraph Reference | `aria/orchestration/langgraph_reference/` | `docs/09_langgraph_reference.md` |
+Full-stack Docker (API + DBs): `docker compose --profile full up -d`.
 
 ## Tech Stack
 
-- **Graph DB**: Neo4j 5 (local Docker)
-- **Vector Store**: ChromaDB
-- **LLM**: Ollama + LiteLLM abstraction
-- **Orchestration**: Custom stateful graph + LangGraph reference
-- **Protocols**: MCP (tool access) + A2A (agent delegation)
-- **API**: FastAPI
-- **Contracts**: Pydantic v2
+| Layer | Technology |
+|-------|------------|
+| **Language** | Python ≥ 3.11 (CI matrix: 3.12 / 3.13) |
+| **Graph DB** | Neo4j 5 (community, APOC plugin) |
+| **Vector store** | ChromaDB |
+| **LLM** | LiteLLM abstraction (local-first via Ollama) |
+| **Orchestration** | Custom stateful graph engine; optional LangGraph |
+| **Protocols** | MCP (tool access) · A2A (agent delegation) |
+| **API** | FastAPI + Uvicorn |
+| **Contracts** | Pydantic v2 (strict mode, schema versioning) |
+| **Document parsing** | pdfplumber · BeautifulSoup4 / lxml |
+| **Observability** | structlog · prometheus-client |
+| **Build / lock** | hatchling · uv |
+| **Lint / type-check** | ruff · mypy (strict + Pydantic plugin) |
 
-## Portfolio defaults vs production checklist
+## Evaluation & Testing
 
-This repo is a local / portfolio artifact but is structured with production-style boundaries:
+ARIA ships with a layered test and evaluation suite — unit, integration, golden-set regression, E2E, security audits, and a human-review eval store.
 
-- **Regression suite**: [`tests/eval/test_edge_cases.py`](tests/eval/test_edge_cases.py) covers ingestion limits, Unicode, orchestration guards, LLM JSON parsing, impact contracts, and HTTP edge cases. Run: `pytest tests/eval/test_edge_cases.py -v`.
-- **Orchestration**: The scratch engine rejects non-`ARIAState` node returns and sets `error` instead of crashing.
-- **LLM**: `complete_structured` strips nested markdown fences and can extract a balanced JSON object/array when the model adds prose or broken wrappers.
-- **Impact**: `ImpactReport` aligns `total_requirements` with reported gaps when upstream sends inconsistent zeros, and `risk_level` uses a bounded denominator.
-- **API**: Request bodies for `/ingest/text` and `/query` use `extra="forbid"` (unknown JSON keys → 422). Empty `regulation_id` is normalized to `null`. POSTs under `/ingest` are rejected with **413** when `Content-Length` exceeds `ARIA_MAX_INGEST_BODY_BYTES` (default 12 MiB).
-- **HTTP contracts**: `GET /health` is liveness only. `GET /ready` probes Neo4j and Chroma via env (see `api/readiness.py`) and returns `200` when both succeed, else `503` with `status: degraded`. With `ARIA_PLACEHOLDER_API=true` (default), `GET /impact` and `POST /query` return documented placeholders and set `X-ARIA-Mode: placeholder`. Set `ARIA_PLACEHOLDER_API=false` to run `ImpactAnalyzerAgent` against Neo4j and hybrid/vector retrieval plus an LLM; missing dependencies yield `503` with `missing_dependencies`. The HTTP impact payload remains `ImpactSummaryResponse` (a summary DTO); the full analyzer contract is `ImpactReport` in `aria.contracts.impact`.
-- **Schema versions**: Contracts carry `SCHEMA_VERSION` defaults. Runtime enforcement is opt-in via `ARIA_STRICT_SCHEMA_VERSION` (see `aria.contracts._strict`).
-- **MCP**: `list_tools` exposes `input_schema` and a documented `output_schema` envelope (`ToolResult`) for every tool.
-- **Agent registry**: `connect_app_dependencies` registers every entry in `AGENT_CARDS` into `AgentRegistry`; `GET /agents` reads that registry (slug lookups for `GET /agents/{name}` still use `AGENT_CARDS` keys).
-- **Security (portfolio discipline)**: Set `API_KEY` or `ARIA_API_KEY` to require `X-API-Key` or `Authorization: Bearer` on all routes except `GET /health`. Set `A2A_SHARED_SECRET` so agent routers require `X-A2A-Secret` on `/a2a/card` and `/a2a/tasks` (`/a2a/health` stays open for probes). CORS is driven by `CORS_ORIGINS` or `CORS_ALLOW_ORIGINS` (defaults to local dev URLs; use `*` only for local experimentation—wildcard disables credentialed cookies). `DEPLOYMENT_ENV=production` disables `/docs` and the OpenAPI JSON export. Multipart `/ingest/file` enforces `INGEST_MAX_BYTES` and allows `text/*` or `application/octet-stream`. MCP tool failures and A2A task failures return generic messages to callers; stack traces stay in logs. Non-local LLM endpoints require a real `LLM_API_KEY` (Ollama + loopback URLs keep the placeholder key).
-- **Not enforced by default**: Strict `Content-Type` requirements for JSON routes (many clients omit it; Starlette may still parse the body). Tighten at a reverse proxy if needed.
+| Layer | Location | What it covers |
+|-------|----------|----------------|
+| **Unit** | `tests/unit/` | Contracts, graph queries, orchestration, LLM structured output, entity extraction, hybrid retrieval |
+| **Integration** | `tests/integration/` | End-to-end pipeline with live Neo4j + Chroma |
+| **Golden set** | `tests/eval/golden_set/` | YAML cases (retrieval, trace, contract, edge, security) with tiered runs (`fast` / `medium` / `slow`), multi-lens runner, JUnit + JSON reports |
+| **E2E** | `tests/eval/e2e/` | `POST /query` against the running app; placeholder by default, live hybrid path in nightly |
+| **Security** | `tests/eval/test_security_audit.py` | Auth, CORS, body-limit, header, and protocol surface checks |
+| **Eval store** | `tests/eval/eval_store.py` | Append-only JSONL log of eval runs for offline human review |
+| **Trajectory** | `tests/eval/test_trajectory_eval.py` | Agent trace and step-sequence analysis |
 
-## Data handling
+**CI** (`.github/workflows/ci.yml`) — matrix across Python 3.12/3.13; runs unit, eval subsets, golden fast tier, API contract, and security tests on every push.
 
-Regulatory text may contain sensitive or personal information. This codebase does **not** perform PII detection, redaction, or retention management. Do not upload real personal data unless your deployment adds external controls (classification, encryption, access logging, and data processing agreements as required).
+**Nightly** (`.github/workflows/nightly.yml`) — spins up Neo4j + Chroma services, seeds the graph, runs full integration + golden slow tier + eval store, and uploads reports and eval artifacts.
 
-## Reverse proxy note
+## HTTP Surface & Operational Behaviour
 
-For production-style deployments, enforce a maximum request body size at nginx, Traefik, or your cloud load balancer in addition to `ARIA_MAX_INGEST_BODY_BYTES` and `INGEST_MAX_BYTES`.
+### Modes
+
+`ARIA_PLACEHOLDER_API=true` (default): `/impact` and `/query` return documented placeholders with `X-ARIA-Mode: placeholder` — no live infrastructure required.
+Set to `false` to run against Neo4j, Chroma, and an LLM; missing dependencies yield `503` with `missing_dependencies`.
+
+### Endpoints
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/health` | GET | Liveness probe |
+| `/ready` | GET | Readiness — probes Neo4j + Chroma; `200` or `503 degraded` |
+| `/ingest/text` | POST | Ingest plain-text regulatory content |
+| `/ingest/file` | POST | Multipart file upload (`text/*`, `application/octet-stream`) |
+| `/query` | POST | Compliance question → grounded answer with sources |
+| `/impact` | GET | Impact / gap summary (placeholder or live) |
+| `/agents` | GET | List registered agent cards |
+| `/agents/{name}` | GET | Single agent card by slug |
+| `/a2a/*` | — | A2A protocol surface (card, tasks, health) |
+
+### Hardening
+
+- **Auth** — set `API_KEY` / `ARIA_API_KEY` to gate all routes (except `/health`) via `X-API-Key` or `Authorization: Bearer`. `A2A_SHARED_SECRET` protects `/a2a/card` and `/a2a/tasks`.
+- **Body limits** — `ARIA_MAX_INGEST_BODY_BYTES` (default 12 MiB) enforced at middleware; `INGEST_MAX_BYTES` for multipart uploads. Reverse-proxy enforcement recommended in addition.
+- **CORS** — `CORS_ORIGINS` / `CORS_ALLOW_ORIGINS` (defaults to local dev URLs).
+- **Production mode** — `DEPLOYMENT_ENV=production` disables `/docs` and OpenAPI JSON export.
+- **Contracts** — request bodies use `extra="forbid"` (unknown keys → 422). Contracts carry `SCHEMA_VERSION`; runtime enforcement opt-in via `ARIA_STRICT_SCHEMA_VERSION`.
+- **Error handling** — MCP/A2A failures return generic messages to callers; stack traces stay in server logs. `complete_structured` strips nested markdown fences and recovers balanced JSON from malformed LLM output.
+- **MCP tools** — `list_tools` exposes `input_schema` and `output_schema` (`ToolResult` envelope) for every tool; no arbitrary Cypher from callers.
+
+## Data Handling
+
+Regulatory text may contain sensitive or personal information. This codebase does **not** perform PII detection, redaction, or retention management. Do not ingest real personal data without external controls (classification, encryption, access logging, data-processing agreements).
