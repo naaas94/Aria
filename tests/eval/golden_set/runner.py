@@ -8,6 +8,7 @@ Each ``run_*_check`` function accepts a :class:`GoldenCase` and returns a
 from __future__ import annotations
 
 import importlib
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -527,7 +528,6 @@ def _check_a2a_secret_enforcement(case: GoldenCase, t0: float) -> CheckOutcome:
 
 
 def _check_supply_chain_lower_bounds(case: GoldenCase, t0: float) -> CheckOutcome:
-    import re
     from pathlib import Path
 
     repo_root = Path(__file__).resolve().parents[3]
@@ -548,6 +548,159 @@ def _check_supply_chain_lower_bounds(case: GoldenCase, t0: float) -> CheckOutcom
     issues = [k for k, v in sub.items() if not v]
     return CheckOutcome(
         passed=all(sub.values()),
+        detail="; ".join(issues) if issues else "ok",
+        duration_ms=(time.perf_counter() - t0) * 1000,
+        sub_checks=sub,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Quality lens
+# ---------------------------------------------------------------------------
+
+
+def run_quality_check(case: GoldenCase) -> CheckOutcome:
+    """Assess output quality of an LLM-generated answer.
+
+    Works on both live responses (stored in ``case.input``) and replay
+    fixtures.  Checks are deterministic: keyword presence, source count,
+    answer length, and optional regex.
+    """
+    t0 = time.perf_counter()
+    spec = case.expect.quality
+    assert spec is not None
+
+    answer: str = case.input.get("answer", "")
+    sources: list[dict[str, Any]] = case.input.get("sources", [])
+    answer_lower = answer.lower()
+
+    issues: list[str] = []
+    sub: dict[str, bool] = {}
+
+    for kw in spec.must_mention:
+        hit = kw.lower() in answer_lower
+        sub[f"mentions:{kw}"] = hit
+        if not hit:
+            issues.append(f"Answer must mention '{kw}'")
+
+    for kw in spec.must_not_mention:
+        found = kw.lower() in answer_lower
+        sub[f"absent:{kw}"] = not found
+        if found:
+            issues.append(f"Answer must NOT mention '{kw}'")
+
+    if spec.min_source_count > 0:
+        ok = len(sources) >= spec.min_source_count
+        sub["min_sources"] = ok
+        if not ok:
+            issues.append(
+                f"Expected >= {spec.min_source_count} sources, got {len(sources)}"
+            )
+
+    if spec.max_answer_length is not None:
+        ok = len(answer) <= spec.max_answer_length
+        sub["max_length"] = ok
+        if not ok:
+            issues.append(
+                f"Answer length {len(answer)} exceeds max {spec.max_answer_length}"
+            )
+
+    if spec.answer_regex is not None:
+        matched = re.search(spec.answer_regex, answer, re.IGNORECASE) is not None
+        sub["regex_match"] = matched
+        if not matched:
+            issues.append(f"Answer does not match pattern '{spec.answer_regex}'")
+
+    passed = all(sub.values()) if sub else True
+    return CheckOutcome(
+        passed=passed,
+        detail="; ".join(issues) if issues else "ok",
+        duration_ms=(time.perf_counter() - t0) * 1000,
+        sub_checks=sub,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Replay lens
+# ---------------------------------------------------------------------------
+
+
+def run_replay_check(case: GoldenCase) -> CheckOutcome:
+    """Validate a recorded replay fixture for contract and regression.
+
+    Loads the fixture from ``replay/``, checks response shape, strategy,
+    source count, required trace keys, and optionally runs quality sub-checks.
+    """
+    from .recorder import load_replay_fixture
+
+    t0 = time.perf_counter()
+    spec = case.expect.replay
+    assert spec is not None
+
+    issues: list[str] = []
+    sub: dict[str, bool] = {}
+
+    try:
+        fixture = load_replay_fixture(spec.fixture_file)
+    except FileNotFoundError as exc:
+        return CheckOutcome(
+            passed=False,
+            detail=str(exc),
+            duration_ms=(time.perf_counter() - t0) * 1000,
+            sub_checks={"fixture_exists": False},
+        )
+
+    sub["fixture_exists"] = True
+    resp = fixture.response
+
+    sub["has_answer"] = bool(resp.get("answer"))
+    if not sub["has_answer"]:
+        issues.append("Replay fixture has no answer")
+
+    if spec.expected_strategy is not None:
+        actual = resp.get("retrieval_strategy", fixture.strategy_used)
+        ok = actual == spec.expected_strategy
+        sub["strategy_match"] = ok
+        if not ok:
+            issues.append(
+                f"Strategy mismatch: expected {spec.expected_strategy}, got {actual}"
+            )
+
+    sources = resp.get("sources", [])
+    if spec.min_source_count > 0:
+        ok = len(sources) >= spec.min_source_count
+        sub["min_sources"] = ok
+        if not ok:
+            issues.append(
+                f"Expected >= {spec.min_source_count} sources, got {len(sources)}"
+            )
+
+    trace = resp.get("trace", {})
+    for key in spec.required_trace_keys:
+        present = key in trace
+        sub[f"trace_key:{key}"] = present
+        if not present:
+            issues.append(f"Trace missing required key '{key}'")
+
+    if spec.quality is not None:
+        from .schema import GoldenCase as _GC, Expectations
+
+        quality_case = _GC(
+            id=case.id,
+            category=case.category,
+            tier=case.tier,
+            input={"answer": resp.get("answer", ""), "sources": sources},
+            expect=Expectations(quality=spec.quality),
+        )
+        q_outcome = run_quality_check(quality_case)
+        for k, v in q_outcome.sub_checks.items():
+            sub[f"quality:{k}"] = v
+        if not q_outcome.passed:
+            issues.append(f"Quality: {q_outcome.detail}")
+
+    passed = all(sub.values()) if sub else True
+    return CheckOutcome(
+        passed=passed,
         detail="; ".join(issues) if issues else "ok",
         duration_ms=(time.perf_counter() - t0) * 1000,
         sub_checks=sub,

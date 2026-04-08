@@ -6,6 +6,7 @@ dist/
 build/
 .eggs/
 docs/
+.cursor/
 
 .env
 .venv/
@@ -30,3 +31,5 @@ chroma_data/
 
 golden_report.json
 golden_report.xml
+
+tests/eval/eval_runs/

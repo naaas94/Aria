@@ -1,4 +1,8 @@
-"""Golden-set run report — JSON and optional JUnit XML output."""
+"""Golden-set run report — JSON and optional JUnit XML output.
+
+Supports optional correlation IDs per case and can emit records to the
+offline :class:`~tests.eval.eval_store.EvalStore` for human review.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +21,7 @@ from .runner import CheckOutcome
 class CaseResult:
     golden_id: str
     category: str
+    correlation_id: str = ""
     checks: dict[str, CheckOutcome] = field(default_factory=dict)
 
 
@@ -26,13 +31,57 @@ class GoldenReport:
 
     run_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     tier: str = "fast"
+    emit_eval_store: bool = False
     results: list[CaseResult] = field(default_factory=list)
     _index: dict[str, CaseResult] = field(default_factory=dict, repr=False)
 
-    def record(self, golden_id: str, category: str, checks: dict[str, CheckOutcome]) -> None:
-        entry = CaseResult(golden_id=golden_id, category=category, checks=checks)
+    def record(
+        self,
+        golden_id: str,
+        category: str,
+        checks: dict[str, CheckOutcome],
+        *,
+        correlation_id: str = "",
+        case_input: dict[str, Any] | None = None,
+    ) -> None:
+        if not correlation_id:
+            correlation_id = f"{self.run_id}:{golden_id}"
+        entry = CaseResult(
+            golden_id=golden_id,
+            category=category,
+            correlation_id=correlation_id,
+            checks=checks,
+        )
         self.results.append(entry)
         self._index[golden_id] = entry
+
+        if self.emit_eval_store:
+            self._write_eval_record(entry, case_input or {})
+
+    def _write_eval_record(
+        self, result: CaseResult, case_input: dict[str, Any]
+    ) -> None:
+        from tests.eval.eval_store import EvalRecord, EvalStore
+
+        store = EvalStore()
+        store.append(
+            EvalRecord(
+                run_id=self.run_id,
+                correlation_id=result.correlation_id,
+                case_id=result.golden_id,
+                request=case_input,
+                response=case_input.get("_response", {}),
+                trace=case_input.get("_trace", {}),
+                check_results={
+                    name: {
+                        "passed": c.passed,
+                        "detail": c.detail,
+                        "sub_checks": c.sub_checks,
+                    }
+                    for name, c in result.checks.items()
+                },
+            )
+        )
 
     # -- JSON ------------------------------------------------------------------
 
@@ -49,6 +98,7 @@ class GoldenReport:
                 {
                     "golden_id": r.golden_id,
                     "category": r.category,
+                    "correlation_id": r.correlation_id,
                     "checks": {
                         name: {
                             "passed": c.passed,
@@ -90,6 +140,11 @@ class GoldenReport:
                 tc.set("classname", f"golden_set.{r.category}")
                 tc.set("time", f"{outcome.duration_ms / 1000:.4f}")
                 total_time += outcome.duration_ms
+
+                props = SubElement(tc, "properties")
+                prop = SubElement(props, "property")
+                prop.set("name", "correlation_id")
+                prop.set("value", r.correlation_id)
 
                 if not outcome.passed:
                     failures += 1

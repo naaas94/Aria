@@ -26,7 +26,6 @@ jobs:
           python -m pip install -U pip
           pip install -e ".[dev]"
 
-      # Eval modules that do not import the FastAPI app; orchestration contract tests are mandatory.
       - name: Eval tests (trajectory, traces, graphrag benchmarks)
         run: |
           python -m pytest \
@@ -35,10 +34,17 @@ jobs:
             tests/eval/graphrag_vs_vector_rag.py \
             -m eval -v --tb=short
 
-      - name: Golden set (fast tier)
+      - name: Golden set (fast tier, includes replay)
         run: |
           python -m pytest tests/eval/golden_set/test_goldens.py \
             --golden-tier=fast -m golden -v --tb=short
+
+      - name: API contract and security tests
+        run: |
+          python -m pytest \
+            tests/eval/test_api_contracts.py \
+            tests/eval/test_security_audit.py \
+            -v --tb=short
 
       - name: Unit tests
         run: python -m pytest tests/unit -v --tb=short

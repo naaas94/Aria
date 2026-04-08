@@ -18,11 +18,13 @@ from __future__ import annotations
 import pytest
 
 from .conftest import TIER_ORDER
-from .loader import load_golden_cases
+from .loader import load_golden_cases, load_manifest, validate_manifest_coverage
 from .report import GoldenReport
 from .runner import (
     CheckOutcome,
     run_contract_check,
+    run_quality_check,
+    run_replay_check,
     run_retrieval_check,
     run_security_check,
     run_trace_check,
@@ -55,7 +57,13 @@ def test_golden(case: GoldenCase, golden_tier: str, golden_report: GoldenReport)
     if case.expect.security:
         results["security"] = run_security_check(case)
 
-    golden_report.record(case.id, case.category, results)
+    if case.expect.quality:
+        results["quality"] = run_quality_check(case)
+
+    if case.expect.replay:
+        results["replay"] = run_replay_check(case)
+
+    golden_report.record(case.id, case.category, results, case_input=case.input)
 
     failures = {name: r for name, r in results.items() if not r.passed}
 
@@ -68,3 +76,13 @@ def test_golden(case: GoldenCase, golden_tier: str, golden_report: GoldenReport)
     elif failures:
         details = "; ".join(f"{n}: {r.detail}" for n, r in failures.items())
         pytest.fail(f"{case.id} failed — {details}")
+
+
+@pytest.mark.golden
+def test_manifest_coverage() -> None:
+    """Ensure manifest.yaml and case files on disk stay in sync."""
+    cases = load_golden_cases()
+    manifest = load_manifest()
+    warnings = validate_manifest_coverage(cases, manifest)
+    if warnings:
+        pytest.fail("Manifest / case drift:\n  " + "\n  ".join(warnings))

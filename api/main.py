@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from api.config import cors_allow_origins, is_production_deployment
 from api.deps import _configured_api_key, require_api_key_when_configured
 from api.middleware_body_limit import LimitIngestBodySizeMiddleware
+from api.middleware_request_id import RequestIDMiddleware
 from api.connections import (
     AppConnections,
     connect_app_dependencies,
@@ -25,12 +26,11 @@ from api.errors import ErrorBody, validation_error_payload
 from api.readiness import readiness_payload
 from api.routers import agents, impact, ingest, query
 
+from aria.observability.logger import configure_logging
+
 load_dotenv()
 
-logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format="%(asctime)s %(name)s %(levelname)s %(message)s",
-)
+configure_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +86,7 @@ if _origins:
     )
 
 app.add_middleware(LimitIngestBodySizeMiddleware)
+app.add_middleware(RequestIDMiddleware)
 
 
 @app.exception_handler(HTTPException)

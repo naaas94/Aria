@@ -27,6 +27,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=None,
         help="Directory for golden_report.json / golden_report.xml output.",
     )
+    parser.addoption(
+        "--emit-eval-store",
+        action="store_true",
+        default=False,
+        help="Write each golden result to the offline eval store (eval_runs/).",
+    )
 
 
 @pytest.fixture(scope="session")
@@ -42,7 +48,8 @@ def golden_report(request: pytest.FixtureRequest) -> GoldenReport:
     report directory (``--golden-report-dir`` or the project root).
     """
     tier: str = request.config.getoption("--golden-tier")  # type: ignore[assignment]
-    report = GoldenReport(tier=tier)
+    emit_store: bool = request.config.getoption("--emit-eval-store")  # type: ignore[assignment]
+    report = GoldenReport(tier=tier, emit_eval_store=emit_store)
     yield report  # type: ignore[misc]
 
     report_dir_opt = request.config.getoption("--golden-report-dir")

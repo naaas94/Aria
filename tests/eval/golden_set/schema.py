@@ -69,6 +69,32 @@ class ExpectSecurity(BaseModel):
     )
 
 
+class ExpectQuality(BaseModel):
+    """Output quality expectations for LLM-generated answers."""
+
+    must_mention: list[str] = Field(default_factory=list)
+    must_not_mention: list[str] = Field(default_factory=list)
+    min_source_count: int = 0
+    max_answer_length: int | None = None
+    answer_regex: str | None = Field(
+        default=None,
+        description="Regex pattern the answer text must match",
+    )
+
+
+class ExpectReplay(BaseModel):
+    """Replay-based regression expectations against a recorded fixture."""
+
+    fixture_file: str = Field(
+        ...,
+        description="Filename in replay/ directory, e.g. 'e2e-graphrag-gdpr-dpia.json'",
+    )
+    expected_strategy: str | None = None
+    min_source_count: int = 0
+    required_trace_keys: list[str] = Field(default_factory=list)
+    quality: ExpectQuality | None = None
+
+
 # ---------------------------------------------------------------------------
 # Aggregate expectations
 # ---------------------------------------------------------------------------
@@ -81,6 +107,8 @@ class Expectations(BaseModel):
     trace: ExpectTrace | None = None
     retrieval: ExpectRetrieval | None = None
     security: ExpectSecurity | None = None
+    quality: ExpectQuality | None = None
+    replay: ExpectReplay | None = None
 
 
 # ---------------------------------------------------------------------------
