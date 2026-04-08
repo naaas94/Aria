@@ -31,7 +31,7 @@ async def check_neo4j() -> bool:
 async def check_chroma() -> bool:
     host = os.getenv("CHROMA_HOST", "localhost")
     port = int(os.getenv("CHROMA_PORT", "8000"))
-    url = f"http://{host}:{port}/api/v1/heartbeat"
+    url = f"http://{host}:{port}/api/v2/heartbeat"
     try:
         async with httpx.AsyncClient(timeout=3.0) as ac:
             response = await ac.get(url)
