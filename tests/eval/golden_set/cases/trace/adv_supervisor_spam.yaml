@@ -1,0 +1,23 @@
+id: trace-adv-supervisor-spam
+category: behavior_must_not
+tier: fast
+tags: [trace, adversarial, supervisor]
+description: >
+  Supervisor node visited 25 times with no progress -- pure spam.
+input:
+  trace_id: adv-supervisor-spam-001
+  steps:
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+    - {node_name: supervisor, input_state: {}, output_state: {}, duration_ms: 1.0}
+expect:
+  trace:
+    max_steps: 10

@@ -1,0 +1,18 @@
+id: trace-error-llm-failure
+category: edge
+tier: fast
+tags: [trace, error, llm]
+description: >
+  LLM returns invalid JSON, supervisor step has an error.
+input:
+  trace_id: error-llm-001
+  steps:
+    - node_name: supervisor
+      input_state: {}
+      output_state: {}
+      error: "Model returned invalid JSON"
+      duration_ms: 30000.0
+expect:
+  trace:
+    must_have_error: true
+    max_steps: 5

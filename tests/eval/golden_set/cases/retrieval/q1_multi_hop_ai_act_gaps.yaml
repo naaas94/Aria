@@ -1,0 +1,18 @@
+id: retrieval-q1
+category: happy
+tier: medium
+tags: [graphrag, multi_hop, ai_act]
+description: >
+  Requires regulation -> article -> requirement -> system -> team traversal
+  with policy gap check.
+input:
+  question: "Which EU AI Act requirements affect our systems and have no existing policy coverage?"
+  retrieved_context: ""
+expect:
+  retrieval:
+    expected_components:
+      - system_name
+      - requirement_text
+      - team_name
+      - gap_status
+    requires_multi_hop: true

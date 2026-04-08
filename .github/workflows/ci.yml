@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+
+      - name: Eval tests (trajectory, traces, graphrag benchmarks)
+        run: |
+          python -m pytest \
+            tests/eval/test_trajectory_eval.py \
+            tests/eval/agent_trace_analysis.py \
+            tests/eval/graphrag_vs_vector_rag.py \
+            -m eval -v --tb=short
+
+      - name: Golden set (fast tier, includes replay)
+        run: |
+          python -m pytest tests/eval/golden_set/test_goldens.py \
+            --golden-tier=fast -m golden -v --tb=short
+
+      - name: API contract and security tests
+        run: |
+          python -m pytest \
+            tests/eval/test_api_contracts.py \
+            tests/eval/test_security_audit.py \
+            -v --tb=short
+
+      - name: Unit tests
+        run: python -m pytest tests/unit -v --tb=short

@@ -1,0 +1,15 @@
+id: edge-extracted-entities-empty
+category: edge
+tier: fast
+tags: [contract, regulation, edge_case]
+description: >
+  ExtractedEntities with zero regulations is valid for irrelevant documents.
+input: {}
+expect:
+  contract:
+    model: aria.contracts.regulation.ExtractedEntities
+    required_fields:
+      - source_document_hash
+    fixture_data:
+      source_document_hash: h
+      regulations: []

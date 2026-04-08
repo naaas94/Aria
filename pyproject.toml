@@ -52,6 +52,8 @@ asyncio_mode = "auto"
 markers = [
     "integration: requires running Neo4j and ChromaDB",
     "eval: retrieval quality evaluation benchmarks",
+    "security: security posture and OWASP-style regression checks",
+    "golden: centralized golden-set evaluation checks",
 ]
 
 [tool.mypy]

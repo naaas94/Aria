@@ -61,7 +61,8 @@ class MCPServer:
             return ToolResult(
                 tool_name=tool_name,
                 success=False,
-                error=f"Unknown tool: {tool_name}. Available: {sorted(self._handlers)}",
+                error="Unknown tool name.",
+                error_code="MCP_UNKNOWN_TOOL",
             )
 
         try:
@@ -69,9 +70,14 @@ class MCPServer:
             elapsed = (time.monotonic() - start) * 1000
             logger.info("MCP tool %s completed in %.1fms", tool_name, elapsed)
             return ToolResult(tool_name=tool_name, success=True, data=data)
-        except Exception as exc:
+        except Exception:
             logger.exception("MCP tool %s failed", tool_name)
-            return ToolResult(tool_name=tool_name, success=False, error=str(exc))
+            return ToolResult(
+                tool_name=tool_name,
+                success=False,
+                error="Tool execution failed. See server logs for details.",
+                error_code="MCP_TOOL_EXECUTION_FAILED",
+            )
 
     async def _handle_graph_query(self, arguments: dict[str, Any]) -> Any:
         validated = CypherQueryInput.model_validate(arguments)

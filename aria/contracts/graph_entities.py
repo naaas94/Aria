@@ -9,7 +9,9 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from aria.contracts._strict import enforce_schema_version_if_configured
 
 SCHEMA_VERSION = "0.1.0"
 
@@ -62,11 +64,16 @@ class GraphEdge(BaseModel):
 
 
 class GraphWritePayload(BaseModel):
-    """Batch of nodes and edges for a single atomic graph write."""
+    """Batch of nodes and edges committed in one Neo4j transaction by ``write_payload``."""
 
     schema_version: str = SCHEMA_VERSION
     nodes: list[GraphNode] = Field(default_factory=list)
     edges: list[GraphEdge] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _strict_schema_version(self) -> GraphWritePayload:
+        enforce_schema_version_if_configured(self)
+        return self
 
 
 class GraphWriteStatus(BaseModel):

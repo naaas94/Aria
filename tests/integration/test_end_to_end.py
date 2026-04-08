@@ -55,12 +55,14 @@ class TestAPIEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert "answer" in data
+        assert response.headers.get("X-ARIA-Mode") == "placeholder"
 
     def test_impact_endpoint(self):
         response = client.get("/impact/reg-gdpr")
         assert response.status_code == 200
         data = response.json()
         assert data["regulation_id"] == "reg-gdpr"
+        assert response.headers.get("X-ARIA-Mode") == "placeholder"
 
     def test_agents_list(self):
         response = client.get("/agents")

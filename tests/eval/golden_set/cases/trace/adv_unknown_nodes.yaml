@@ -1,0 +1,30 @@
+id: trace-adv-unknown-nodes
+category: behavior_must_not
+tier: fast
+tags: [trace, adversarial, unknown_nodes]
+description: >
+  Trace contains node names not in the valid orchestration graph.
+input:
+  trace_id: adv-unknown-nodes-001
+  steps:
+    - node_name: supervisor
+      input_state: {}
+      output_state: {}
+      duration_ms: 3.0
+    - node_name: "phantom_router_\u03A9"
+      input_state: {}
+      output_state: {}
+      duration_ms: 1.0
+    - node_name: legacy_node_deprecated
+      input_state: {}
+      output_state: {}
+      duration_ms: 2.0
+    - node_name: end
+      input_state: {}
+      output_state: {}
+      duration_ms: 1.0
+expect:
+  trace:
+    forbidden_nodes:
+      - "phantom_router_\u03A9"
+      - legacy_node_deprecated

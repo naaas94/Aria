@@ -1,0 +1,41 @@
+id: trace-golden-ingestion
+category: happy
+tier: fast
+tags: [trace, ingestion, golden]
+description: >
+  Golden ingestion flow: supervisor -> ingestion -> entity_extractor -> graph_builder -> end.
+input:
+  trace_id: golden-ingestion-001
+  steps:
+    - node_name: supervisor
+      input_state: {raw_document: "..."}
+      output_state: {intent: ingestion}
+      tool_calls: [classify_intent]
+      duration_ms: 12.0
+    - node_name: ingestion
+      input_state: {}
+      output_state: {}
+      duration_ms: 5.0
+    - node_name: entity_extractor
+      input_state: {}
+      output_state: {}
+      duration_ms: 120.0
+    - node_name: graph_builder
+      input_state: {}
+      output_state: {}
+      duration_ms: 45.0
+    - node_name: end
+      input_state: {}
+      output_state: {}
+      duration_ms: 1.0
+expect:
+  trace:
+    expected_sequence:
+      - supervisor
+      - ingestion
+      - entity_extractor
+      - graph_builder
+      - end
+    max_steps: 10
+    required_tools: [classify_intent]
+    must_not_have_error: true

@@ -1,0 +1,20 @@
+id: security-openapi-paths
+category: security
+tier: fast
+tags: [security, openapi, api_surface]
+description: >
+  OpenAPI paths must match the documented expected set; new routes require
+  explicit security review.
+input:
+  expected_paths:
+    - /health
+    - /ready
+    - /ingest/text
+    - /ingest/file
+    - /query
+    - /impact/{regulation_id}
+    - /agents
+    - /agents/{agent_name}
+expect:
+  security:
+    check_type: openapi_paths

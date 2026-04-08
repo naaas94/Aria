@@ -1,0 +1,26 @@
+id: trace-error-entity-extraction
+category: edge
+tier: fast
+tags: [trace, error, entity_extractor]
+description: >
+  Entity extraction fails with schema validation error mid-pipeline.
+input:
+  trace_id: error-extract-001
+  steps:
+    - node_name: supervisor
+      input_state: {}
+      output_state: {}
+      duration_ms: 5.0
+    - node_name: ingestion
+      input_state: {}
+      output_state: {}
+      duration_ms: 4.0
+    - node_name: entity_extractor
+      input_state: {}
+      output_state: {}
+      error: "Schema validation failed for ExtractedEntities"
+      duration_ms: 200.0
+expect:
+  trace:
+    must_have_error: true
+    max_steps: 10

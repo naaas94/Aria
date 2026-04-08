@@ -29,10 +29,13 @@ def build_langgraph() -> Any:
         )
 
     from aria.orchestration.langgraph_reference.nodes import (
+        entity_extractor_node,
+        free_query_node,
         graph_builder_node,
         impact_analyzer_node,
         ingestion_node,
         report_generator_node,
+        route_after_entity_extractor,
         route_after_graph_builder,
         route_after_impact_analyzer,
         route_after_ingestion,
@@ -45,6 +48,8 @@ def build_langgraph() -> Any:
 
     graph.add_node("supervisor", supervisor_node)
     graph.add_node("ingestion", ingestion_node)
+    graph.add_node("entity_extractor", entity_extractor_node)
+    graph.add_node("free_query", free_query_node)
     graph.add_node("graph_builder", graph_builder_node)
     graph.add_node("impact_analyzer", impact_analyzer_node)
     graph.add_node("report_generator", report_generator_node)
@@ -57,6 +62,7 @@ def build_langgraph() -> Any:
         {
             "ingestion": "ingestion",
             "impact_analyzer": "impact_analyzer",
+            "free_query": "free_query",
             "end": END,
         },
     )
@@ -64,10 +70,19 @@ def build_langgraph() -> Any:
         "ingestion",
         route_after_ingestion,
         {
+            "entity_extractor": "entity_extractor",
+            "end": END,
+        },
+    )
+    graph.add_conditional_edges(
+        "entity_extractor",
+        route_after_entity_extractor,
+        {
             "graph_builder": "graph_builder",
             "end": END,
         },
     )
+    graph.add_edge("free_query", END)
     graph.add_conditional_edges(
         "graph_builder",
         route_after_graph_builder,

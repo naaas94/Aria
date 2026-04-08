@@ -67,8 +67,9 @@ class ExecutionResult:
 class OrchestrationGraph:
     """Stateful graph that executes nodes and follows edges until termination."""
 
-    def __init__(self, entry_point: str = "supervisor") -> None:
+    def __init__(self, entry_point: str = "supervisor", *, max_steps: int | None = None) -> None:
         self._entry_point = entry_point
+        self._max_steps = max_steps if max_steps is not None else MAX_STEPS
         self._nodes: dict[str, NodeFunction] = {}
         self._edges: dict[str, EdgeFunction] = dict(EDGE_MAP)
 
@@ -83,23 +84,43 @@ class OrchestrationGraph:
 
         The loop executes the current node, evaluates the outgoing edge
         to determine the next node, and advances. Terminates on "end",
-        error, or after MAX_STEPS to prevent infinite loops.
+        error, or after ``self._max_steps`` iterations (default
+        ``MAX_STEPS``) to prevent infinite loops.
+
+        If the run completes with ``current == "end"`` after the last
+        transition (including when the final loop iteration advanced to
+        ``end``), the max-step guard does **not** set ``state.error``,
+        even when ``step_count`` equals the limit.
         """
         result = ExecutionResult(final_state=state)
         current = self._entry_point
         step_count = 0
 
-        while current != "end" and step_count < MAX_STEPS:
+        while current != "end" and step_count < self._max_steps:
             if current not in self._nodes:
                 state.error = f"Unknown node: {current}"
                 break
 
             start = time.monotonic()
+            prev_state = state
             try:
-                state = await self._nodes[current](state, tools)
+                out = await self._nodes[current](state, tools)
             except Exception as exc:
                 state.error = f"Node {current} raised: {exc}"
                 logger.exception("Node %s failed", current)
+            else:
+                if not isinstance(out, ARIAState):
+                    logger.error(
+                        "Node %s returned invalid state (expected ARIAState, got %s)",
+                        current,
+                        type(out).__name__,
+                    )
+                    state = prev_state
+                    state.error = (
+                        f"Node {current} returned invalid state (expected ARIAState)"
+                    )
+                else:
+                    state = out
 
             elapsed_ms = (time.monotonic() - start) * 1000
 
@@ -127,8 +148,8 @@ class OrchestrationGraph:
                 StepTrace(node_name="end", duration_ms=0, next_node="done")
             )
 
-        if step_count >= MAX_STEPS:
-            state.error = f"Orchestration exceeded max steps ({MAX_STEPS})"
+        if step_count >= self._max_steps and current != "end":
+            state.error = f"Orchestration exceeded max steps ({self._max_steps})"
             logger.error(state.error)
 
         result.final_state = state
@@ -139,6 +160,8 @@ def build_default_graph() -> OrchestrationGraph:
     """Construct the standard ARIA orchestration graph with all nodes wired."""
     from aria.orchestration.scratch.nodes import (
         end_node,
+        entity_extractor_node,
+        free_query_node,
         graph_builder_node,
         impact_analyzer_node,
         ingestion_node,
@@ -149,6 +172,8 @@ def build_default_graph() -> OrchestrationGraph:
     graph = OrchestrationGraph(entry_point="supervisor")
     graph.add_node("supervisor", supervisor_node)
     graph.add_node("ingestion", ingestion_node)
+    graph.add_node("entity_extractor", entity_extractor_node)
+    graph.add_node("free_query", free_query_node)
     graph.add_node("graph_builder", graph_builder_node)
     graph.add_node("impact_analyzer", impact_analyzer_node)
     graph.add_node("report_generator", report_generator_node)

@@ -1,0 +1,11 @@
+id: security-supply-chain
+category: security
+tier: fast
+tags: [security, supply_chain, dependencies]
+description: >
+  pyproject.toml uses lower-bound dependencies (no exact pins), and uv.lock
+  is committed.
+input: {}
+expect:
+  security:
+    check_type: supply_chain_lower_bounds

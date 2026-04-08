@@ -1,0 +1,36 @@
+id: trace-loop-entity-extractor
+category: behavior_must_not
+tier: fast
+tags: [trace, loop, entity_extractor]
+description: >
+  Entity extractor visited 5 times in a row after supervisor -- a loop.
+input:
+  trace_id: loop-extractor-001
+  steps:
+    - node_name: supervisor
+      input_state: {}
+      output_state: {}
+      duration_ms: 2.0
+    - node_name: entity_extractor
+      input_state: {}
+      output_state: {}
+      duration_ms: 10.0
+    - node_name: entity_extractor
+      input_state: {}
+      output_state: {}
+      duration_ms: 10.0
+    - node_name: entity_extractor
+      input_state: {}
+      output_state: {}
+      duration_ms: 10.0
+    - node_name: entity_extractor
+      input_state: {}
+      output_state: {}
+      duration_ms: 10.0
+    - node_name: entity_extractor
+      input_state: {}
+      output_state: {}
+      duration_ms: 10.0
+expect:
+  trace:
+    max_steps: 4

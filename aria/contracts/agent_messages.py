@@ -11,7 +11,9 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from aria.contracts._strict import enforce_schema_version_if_configured
 
 SCHEMA_VERSION = "0.1.0"
 
@@ -53,6 +55,11 @@ class AgentMessage(BaseModel):
         default=None,
         description="Links request/response pairs and traces across agents",
     )
+
+    @model_validator(mode="after")
+    def _strict_schema_version(self) -> AgentMessage:
+        enforce_schema_version_if_configured(self)
+        return self
 
 
 class TaskEnvelope(BaseModel):

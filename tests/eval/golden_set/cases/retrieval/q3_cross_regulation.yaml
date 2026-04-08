@@ -1,0 +1,15 @@
+id: retrieval-q3
+category: happy
+tier: medium
+tags: [graphrag, multi_hop, cross_regulation]
+description: >
+  Cross-regulation multi-hop: two regulation trees joined via team ownership.
+input:
+  question: "Which teams are affected by both GDPR and EU AI Act requirements?"
+  retrieved_context: ""
+expect:
+  retrieval:
+    expected_components:
+      - team_name
+      - regulation_title
+    requires_multi_hop: true

@@ -1,0 +1,29 @@
+id: trace-timeout-graph-builder
+category: edge
+tier: fast
+tags: [trace, timeout, graph_builder]
+description: >
+  Graph builder step has extremely large duration (600s) indicating a timeout.
+input:
+  trace_id: timeout-graph-001
+  steps:
+    - node_name: supervisor
+      input_state: {}
+      output_state: {}
+      duration_ms: 5.0
+    - node_name: ingestion
+      input_state: {}
+      output_state: {}
+      duration_ms: 5.0
+    - node_name: entity_extractor
+      input_state: {}
+      output_state: {}
+      duration_ms: 100.0
+    - node_name: graph_builder
+      input_state: {}
+      output_state: {}
+      duration_ms: 600000.0
+      error: "Client timeout waiting for Neo4j MERGE batch"
+expect:
+  trace:
+    must_have_error: true

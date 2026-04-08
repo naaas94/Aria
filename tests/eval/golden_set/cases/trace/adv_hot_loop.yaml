@@ -1,0 +1,27 @@
+id: trace-adv-hot-loop
+category: behavior_must_not
+tier: fast
+tags: [trace, adversarial, loop]
+description: >
+  Entity extractor visited 100 times -- an extreme hot loop.
+input:
+  trace_id: adv-hot-loop-001
+  steps:
+    - node_name: supervisor
+      input_state: {}
+      output_state: {}
+      duration_ms: 1.0
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+    - {node_name: entity_extractor, input_state: {}, output_state: {}, duration_ms: 0.5}
+expect:
+  trace:
+    max_steps: 10
