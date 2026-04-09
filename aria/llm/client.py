@@ -271,7 +271,7 @@ class LLMClient:
                         error_type=type(exc).__name__,
                     )
                     LLM_CALL_COUNTER.labels(model=self.model, status="error").inc()
-                    LLM_CALL_DURATION.labels(model=self.model).observe(time.monotonic() - start)
+                    LLM_CALL_DURATION.labels(model=self.model).observe(err_elapsed_ms / 1000.0)
                     raise
                 logger.warning(
                     "LLM attempt %d/%d failed (%s), retrying",

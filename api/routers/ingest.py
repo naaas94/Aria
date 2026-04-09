@@ -51,9 +51,9 @@ async def ingest_text(request: IngestTextRequest) -> IngestResponse:
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Empty document text")
 
+    content_hash = hashlib.sha256(request.text.encode("utf-8")).hexdigest()
     start = time.monotonic()
     try:
-        content_hash = hashlib.sha256(request.text.encode("utf-8")).hexdigest()
         chunks = chunk_text(
             request.text,
             source_hash=content_hash,
