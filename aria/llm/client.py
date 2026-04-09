@@ -13,7 +13,11 @@ import time
 from typing import Any, TypeVar
 
 import litellm
+import structlog
 from pydantic import BaseModel, ValidationError
+
+from aria.observability.metrics import LLM_CALL_COUNTER, LLM_CALL_DURATION
+from aria.observability.telemetry_store import get_telemetry_store
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +135,25 @@ def _looks_like_local_llm(model: str, base_url: str) -> bool:
     return "localhost" in u or "127.0.0.1" in u
 
 
+def _optional_int_token(v: Any) -> int | None:
+    """Normalize LiteLLM usage fields; ignore mocks and non-numeric values."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        return int(v)
+    return None
+
+
+def _optional_cost_usd(v: Any) -> float | None:
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    return None
+
+
 def _require_non_placeholder_api_key(model: str, base_url: str, api_key: str) -> None:
     if _looks_like_local_llm(model, base_url):
         return
@@ -182,11 +205,40 @@ class LLMClient:
                     timeout=self.timeout,
                 )
                 content = response.choices[0].message.content or ""
+                usage = getattr(response, "usage", None)
+                prompt_tokens = (
+                    _optional_int_token(getattr(usage, "prompt_tokens", None))
+                    if usage
+                    else None
+                )
+                completion_tokens = (
+                    _optional_int_token(getattr(usage, "completion_tokens", None))
+                    if usage
+                    else None
+                )
+                hp = getattr(response, "_hidden_params", None)
+                raw_cost = hp.get("response_cost") if isinstance(hp, dict) else None
+                cost = _optional_cost_usd(raw_cost)
                 elapsed = time.monotonic() - start
+                elapsed_ms = elapsed * 1000.0
+                _rid = structlog.contextvars.get_contextvars().get("request_id")
+                request_id = "" if _rid is None else str(_rid)
+                get_telemetry_store().record_llm_call(
+                    request_id=request_id,
+                    model=self.model,
+                    latency_ms=elapsed_ms,
+                    status="success",
+                    attempt=attempt,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    cost_usd=cost,
+                )
                 logger.debug(
                     "LLM response in %.2fs (attempt %d, model=%s)",
                     elapsed, attempt, self.model,
                 )
+                LLM_CALL_COUNTER.labels(model=self.model, status="success").inc()
+                LLM_CALL_DURATION.labels(model=self.model).observe(elapsed)
                 return content
             except Exception as exc:
                 if attempt == self.max_retries:
@@ -203,6 +255,23 @@ class LLMClient:
                             type(exc).__name__,
                             exc,
                         )
+                    _rid = structlog.contextvars.get_contextvars().get("request_id")
+                    request_id = "" if _rid is None else str(_rid)
+                    err_elapsed_ms = (time.monotonic() - start) * 1000.0
+                    err_status = "timeout" if isinstance(exc, TimeoutError) else "error"
+                    get_telemetry_store().record_llm_call(
+                        request_id=request_id,
+                        model=self.model,
+                        latency_ms=err_elapsed_ms,
+                        status=err_status,
+                        attempt=attempt,
+                        prompt_tokens=None,
+                        completion_tokens=None,
+                        cost_usd=None,
+                        error_type=type(exc).__name__,
+                    )
+                    LLM_CALL_COUNTER.labels(model=self.model, status="error").inc()
+                    LLM_CALL_DURATION.labels(model=self.model).observe(time.monotonic() - start)
                     raise
                 logger.warning(
                     "LLM attempt %d/%d failed (%s), retrying",

@@ -16,6 +16,7 @@ from api.config import cors_allow_origins, is_production_deployment
 from api.deps import _configured_api_key, require_api_key_when_configured
 from api.middleware_body_limit import LimitIngestBodySizeMiddleware
 from api.middleware_request_id import RequestIDMiddleware
+from api.middleware_telemetry import TelemetryMiddleware
 from api.connections import (
     AppConnections,
     connect_app_dependencies,
@@ -24,9 +25,10 @@ from api.connections import (
 )
 from api.errors import ErrorBody, validation_error_payload
 from api.readiness import readiness_payload
-from api.routers import agents, impact, ingest, query
+from api.routers import agents, impact, ingest, query, telemetry
 
 from aria.observability.logger import configure_logging
+from aria.observability.telemetry_store import close_telemetry_store, get_telemetry_store
 
 load_dotenv()
 
@@ -44,9 +46,11 @@ async def lifespan(app: FastAPI):
         )
     connections = await connect_app_dependencies()
     app.state.connections = connections
+    get_telemetry_store()
     try:
         yield
     finally:
+        close_telemetry_store()
         await disconnect_app_dependencies(connections)
 
 
@@ -86,6 +90,7 @@ if _origins:
     )
 
 app.add_middleware(LimitIngestBodySizeMiddleware)
+app.add_middleware(TelemetryMiddleware)
 app.add_middleware(RequestIDMiddleware)
 
 
@@ -136,6 +141,9 @@ app.include_router(ingest.router, dependencies=_route_auth)
 app.include_router(query.router, dependencies=_route_auth)
 app.include_router(impact.router, dependencies=_route_auth)
 app.include_router(agents.router, dependencies=_route_auth)
+
+# Unauthenticated (like /health): scrapers and ops dashboards; protect at the edge if needed.
+app.include_router(telemetry.router)
 
 
 @app.get("/health")

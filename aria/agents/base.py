@@ -12,7 +12,11 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any
 
+import structlog
 from pydantic import BaseModel
+
+from aria.observability.metrics import AGENT_EXECUTION_COUNTER, AGENT_EXECUTION_DURATION
+from aria.observability.telemetry_store import get_telemetry_store
 
 
 class AgentResult(BaseModel):
@@ -53,17 +57,36 @@ class BaseAgent(ABC):
             await self.initialize()
             output = await self.process(input_data)
             await self.finalize()
-            return AgentResult(
+            elapsed = time.monotonic() - start
+            result = AgentResult(
                 agent_name=self.name,
                 success=True,
                 output=output,
-                duration_ms=(time.monotonic() - start) * 1000,
+                duration_ms=elapsed * 1000,
             )
         except Exception as exc:
             self.logger.exception("%s failed", self.name)
-            return AgentResult(
+            elapsed = time.monotonic() - start
+            result = AgentResult(
                 agent_name=self.name,
                 success=False,
                 error=str(exc),
-                duration_ms=(time.monotonic() - start) * 1000,
+                duration_ms=elapsed * 1000,
             )
+
+        try:
+            get_telemetry_store().record_agent_execution(
+                request_id=structlog.contextvars.get_contextvars().get("request_id"),
+                agent_name=self.name,
+                status="success" if result.success else "error",
+                error=result.error,
+                duration_ms=result.duration_ms,
+            )
+        except Exception:
+            pass
+
+        status = "success" if result.success else "error"
+        AGENT_EXECUTION_COUNTER.labels(agent_name=self.name, status=status).inc()
+        AGENT_EXECUTION_DURATION.labels(agent_name=self.name).observe(result.duration_ms / 1000.0)
+
+        return result

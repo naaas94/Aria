@@ -11,6 +11,7 @@ import time
 from typing import Any
 
 from aria.graph.client import Neo4jClient
+from aria.observability.metrics import MCP_TOOL_CALL_COUNTER, MCP_TOOL_CALL_DURATION
 from aria.graph.queries import execute_named_query
 from aria.protocols.mcp.tools import (
     TOOL_DEFINITIONS,
@@ -58,6 +59,7 @@ class MCPServer:
 
         handler = self._handlers.get(tool_name)
         if not handler:
+            MCP_TOOL_CALL_COUNTER.labels(tool_name=tool_name, status="error").inc()
             return ToolResult(
                 tool_name=tool_name,
                 success=False,
@@ -67,11 +69,15 @@ class MCPServer:
 
         try:
             data = await handler(arguments)
-            elapsed = (time.monotonic() - start) * 1000
-            logger.info("MCP tool %s completed in %.1fms", tool_name, elapsed)
+            elapsed_s = time.monotonic() - start
+            logger.info("MCP tool %s completed in %.1fms", tool_name, elapsed_s * 1000)
+            MCP_TOOL_CALL_COUNTER.labels(tool_name=tool_name, status="success").inc()
+            MCP_TOOL_CALL_DURATION.labels(tool_name=tool_name).observe(elapsed_s)
             return ToolResult(tool_name=tool_name, success=True, data=data)
         except Exception:
             logger.exception("MCP tool %s failed", tool_name)
+            MCP_TOOL_CALL_COUNTER.labels(tool_name=tool_name, status="error").inc()
+            MCP_TOOL_CALL_DURATION.labels(tool_name=tool_name).observe(time.monotonic() - start)
             return ToolResult(
                 tool_name=tool_name,
                 success=False,

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import os
+import time
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
 from aria.ingestion.chunker import chunk_text
+from aria.observability.metrics import INGESTION_COUNTER, INGESTION_DURATION
 
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
 
@@ -49,12 +51,19 @@ async def ingest_text(request: IngestTextRequest) -> IngestResponse:
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Empty document text")
 
-    content_hash = hashlib.sha256(request.text.encode("utf-8")).hexdigest()
-    chunks = chunk_text(
-        request.text,
-        source_hash=content_hash,
-        metadata={"source": request.source},
-    )
+    start = time.monotonic()
+    try:
+        content_hash = hashlib.sha256(request.text.encode("utf-8")).hexdigest()
+        chunks = chunk_text(
+            request.text,
+            source_hash=content_hash,
+            metadata={"source": request.source},
+        )
+        INGESTION_COUNTER.labels(status="success").inc()
+        INGESTION_DURATION.labels(format="text").observe(time.monotonic() - start)
+    except Exception:
+        INGESTION_COUNTER.labels(status="error").inc()
+        raise
 
     return IngestResponse(
         status="success",
@@ -82,11 +91,18 @@ async def ingest_file(file: UploadFile = File(...)) -> IngestResponse:
     text = content.decode("utf-8", errors="replace")
     content_hash = hashlib.sha256(content).hexdigest()
 
-    chunks = chunk_text(
-        text,
-        source_hash=content_hash,
-        metadata={"source": file.filename},
-    )
+    start = time.monotonic()
+    try:
+        chunks = chunk_text(
+            text,
+            source_hash=content_hash,
+            metadata={"source": file.filename},
+        )
+        INGESTION_COUNTER.labels(status="success").inc()
+        INGESTION_DURATION.labels(format="file").observe(time.monotonic() - start)
+    except Exception:
+        INGESTION_COUNTER.labels(status="error").inc()
+        raise
 
     return IngestResponse(
         status="success",

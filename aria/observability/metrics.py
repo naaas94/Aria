@@ -12,6 +12,12 @@ from prometheus_client import Counter, Histogram, Info
 ARIA_INFO = Info("aria", "ARIA system metadata")
 ARIA_INFO.info({"version": "0.1.0", "component": "aria-api"})
 
+HTTP_REQUEST_COUNTER = Counter(
+    "aria_http_requests_total",
+    "Total HTTP API requests",
+    ["method", "status_code"],
+)
+
 INGESTION_COUNTER = Counter(
     "aria_ingestion_total",
     "Total document ingestion attempts",

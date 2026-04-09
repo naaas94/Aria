@@ -9,6 +9,7 @@ from typing import Any, AsyncIterator
 from neo4j import AsyncDriver, AsyncGraphDatabase, AsyncSession
 
 from aria.graph.schema import generate_constraint_statements, generate_index_statements
+from aria.observability.metrics import GRAPH_QUERY_COUNTER
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ class Neo4jClient:
         parameters: dict[str, Any] | None = None,
         database: str = "neo4j",
     ) -> list[dict[str, Any]]:
+        GRAPH_QUERY_COUNTER.labels(query_name="read").inc()
         async with self.session(database) as session:
             result = await session.run(query, parameters or {})
             return [record.data() async for record in result]
@@ -57,6 +59,7 @@ class Neo4jClient:
         parameters: dict[str, Any] | None = None,
         database: str = "neo4j",
     ) -> list[dict[str, Any]]:
+        GRAPH_QUERY_COUNTER.labels(query_name="write").inc()
         async with self.session(database) as session:
             result = await session.run(query, parameters or {})
             return [record.data() async for record in result]
