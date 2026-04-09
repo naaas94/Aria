@@ -21,6 +21,8 @@ htmlcov/
 *.log
 *.pid
 *.db
+*.db-shm
+*.db-wal
 
 .idea/
 .vscode/

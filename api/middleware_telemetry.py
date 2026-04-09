@@ -35,14 +35,17 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
             if not _should_skip_path(path):
                 ctx = structlog.contextvars.get_contextvars()
                 request_id = str(ctx.get("request_id") or "")
-                get_telemetry_store().record_request(
-                    request_id=request_id,
-                    method=request.method,
-                    path=path,
-                    status_code=status_code,
-                    latency_ms=latency_ms,
-                )
-                HTTP_REQUEST_COUNTER.labels(
-                    method=request.method,
-                    status_code=str(status_code),
-                ).inc()
+                try:
+                    get_telemetry_store().record_request(
+                        request_id=request_id,
+                        method=request.method,
+                        path=path,
+                        status_code=status_code,
+                        latency_ms=latency_ms,
+                    )
+                    HTTP_REQUEST_COUNTER.labels(
+                        method=request.method,
+                        status_code=str(status_code),
+                    ).inc()
+                except Exception:
+                    pass
