@@ -171,10 +171,17 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     if isinstance(exc, RequestValidationError):
         return await request_validation_handler(request, exc)
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
-    body = ErrorBody(detail="An unexpected error occurred.", code="internal_error")
+    rid = getattr(request.state, "request_id", None)
+    body = ErrorBody(
+        detail="An unexpected error occurred.",
+        code="internal_error",
+        request_id=str(rid) if rid else None,
+    )
+    hdrs = {"X-Request-ID": str(rid)} if rid else None
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=body.model_dump(),
+        headers=hdrs,
     )
 
 

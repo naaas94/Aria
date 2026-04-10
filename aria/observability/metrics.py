@@ -3,6 +3,13 @@
 Defines counters and histograms for ingestion, retrieval, agent
 execution, and tool calls. Metrics are registered on import and
 exposed via the /metrics endpoint.
+
+Label cardinality: counters and histograms below use string labels such as
+``model``, ``agent_name``, ``tool_name``, and ``query_name`` with values taken
+from runtime configuration or request paths. Unbounded distinct values create
+one Prometheus time series per label combination — monitor series counts and
+consider recording rules or allowlisting if deployments see high churn (e.g.
+per-user tool names or dynamic model strings).
 """
 
 from __future__ import annotations

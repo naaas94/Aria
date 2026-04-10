@@ -20,7 +20,11 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--golden-tier",
         default="slow",
         choices=["fast", "medium", "slow"],
-        help="Maximum tier to run (fast < medium < slow). Default: slow (run all).",
+        help=(
+            "Maximum case tier to include: fast < medium < slow. "
+            "Default slow runs every case (fast + medium); use fast or medium to skip heavier tiers. "
+            "A case with tier: slow is reserved for future expensive scenarios — none are defined yet."
+        ),
     )
     parser.addoption(
         "--golden-report-dir",

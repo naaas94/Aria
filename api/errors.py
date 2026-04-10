@@ -12,6 +12,10 @@ class ErrorBody(BaseModel):
 
     detail: str
     code: str = Field(default="error", description="Machine-readable error category")
+    request_id: str | None = Field(
+        default=None,
+        description="Echo of X-Request-ID when present (e.g. internal_error responses).",
+    )
 
 
 class ServiceUnavailableBody(BaseModel):

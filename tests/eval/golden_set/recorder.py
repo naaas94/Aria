@@ -11,40 +11,15 @@ cases via ``expect.replay.fixture_file``.
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from tests.eval.scrub import scrub_dict as _scrub_dict
+
 REPLAY_DIR = Path(__file__).resolve().parent / "replay"
-
-_SCRUB_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*\S+"),
-    re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"),
-]
-
-
-def _scrub(text: str) -> str:
-    """Remove secrets and PII-like patterns from text."""
-    for pat in _SCRUB_PATTERNS:
-        text = pat.sub("[REDACTED]", text)
-    return text
-
-
-def _scrub_dict(d: dict[str, Any]) -> dict[str, Any]:
-    out: dict[str, Any] = {}
-    for k, v in d.items():
-        if isinstance(v, str):
-            out[k] = _scrub(v)
-        elif isinstance(v, dict):
-            out[k] = _scrub_dict(v)
-        elif isinstance(v, list):
-            out[k] = [_scrub_dict(i) if isinstance(i, dict) else (_scrub(i) if isinstance(i, str) else i) for i in v]
-        else:
-            out[k] = v
-    return out
 
 
 def _git_short_sha() -> str:

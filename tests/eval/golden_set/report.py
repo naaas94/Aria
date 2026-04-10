@@ -62,16 +62,18 @@ class GoldenReport:
         self, result: CaseResult, case_input: dict[str, Any]
     ) -> None:
         from tests.eval.eval_store import EvalRecord, EvalStore
+        from tests.eval.scrub import scrub_dict
 
+        scrubbed = scrub_dict(case_input)
         store = EvalStore()
         store.append(
             EvalRecord(
                 run_id=self.run_id,
                 correlation_id=result.correlation_id,
                 case_id=result.golden_id,
-                request=case_input,
-                response=case_input.get("_response", {}),
-                trace=case_input.get("_trace", {}),
+                request=scrubbed,
+                response=scrubbed.get("_response", {}),
+                trace=scrubbed.get("_trace", {}),
                 check_results={
                     name: {
                         "passed": c.passed,

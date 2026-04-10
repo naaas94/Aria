@@ -15,6 +15,8 @@ import time
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
+from api.limits import DEFAULT_INGEST_MAX_BYTES
+
 from aria.ingestion.chunker import chunk_text
 from aria.observability.metrics import INGESTION_COUNTER, INGESTION_DURATION
 
@@ -23,11 +25,9 @@ router = APIRouter(
     tags=["ingestion"],
 )
 
-_DEFAULT_MAX_BYTES = 10 * 1024 * 1024
-
 
 def _ingest_max_bytes() -> int:
-    return int(os.getenv("INGEST_MAX_BYTES", str(_DEFAULT_MAX_BYTES)))
+    return int(os.getenv("INGEST_MAX_BYTES", str(DEFAULT_INGEST_MAX_BYTES)))
 
 
 def _upload_content_type_allowed(content_type: str | None) -> bool:

@@ -15,11 +15,13 @@ from typing import Any
 
 import httpx
 import pytest
+import yaml
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.main import app
 from aria.contracts.agent_messages import TaskEnvelope, TaskStatus
+from tests.eval.expected_api_paths import EXPECTED_OPENAPI_PATHS
 from aria.protocols.a2a.client import A2AClient
 from aria.graph.queries import QUERIES, execute_named_query
 from aria.llm.client import LLMClient
@@ -126,22 +128,27 @@ def test_ingest_file_accepts_upload_when_api_key_unset() -> None:
 
 def test_documented_openapi_paths_match_expected_set() -> None:
     paths = {p for _, p in _collect_api_paths_methods()}
-    expected = {
-        "/health",
-        "/ready",
-        "/metrics",
-        "/telemetry",
-        "/ingest/text",
-        "/ingest/file",
-        "/query",
-        "/impact/{regulation_id}",
-        "/agents",
-        "/agents/{agent_name}",
-    }
-    assert expected == paths, (
-        "Update this test and tests/eval/golden_set/cases/security/openapi_paths.yaml "
-        "if routes change.\n"
+    assert EXPECTED_OPENAPI_PATHS == paths, (
+        "OpenAPI path set changed: update tests/eval/expected_api_paths.py and "
+        "expected_paths in tests/eval/golden_set/cases/security/openapi_paths.yaml.\n"
         f"OpenAPI paths: {sorted(paths)}"
+    )
+
+
+def test_golden_openapi_paths_yaml_matches_ssot() -> None:
+    yaml_path = (
+        REPO_ROOT
+        / "tests"
+        / "eval"
+        / "golden_set"
+        / "cases"
+        / "security"
+        / "openapi_paths.yaml"
+    )
+    raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+    listed = set(raw["input"]["expected_paths"])
+    assert listed == EXPECTED_OPENAPI_PATHS, (
+        "openapi_paths.yaml expected_paths must match tests/eval/expected_api_paths.py"
     )
 
 
