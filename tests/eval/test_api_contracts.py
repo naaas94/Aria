@@ -63,6 +63,44 @@ IMPACT_BY_REGULATION_ROW_KEYS = frozenset(
     }
 )
 
+UNCOVERED_REQUIREMENTS_ROW_KEYS = frozenset(
+    {
+        "regulation",
+        "article",
+        "requirement",
+        "obligation_type",
+        "system",
+        "team",
+    }
+)
+
+REQUIREMENTS_BY_TEAM_ROW_KEYS = frozenset(
+    {
+        "requirement_id",
+        "requirement",
+        "system",
+        "regulation",
+        "article",
+    }
+)
+
+DEADLINES_BY_REGULATION_ROW_KEYS = frozenset(
+    {
+        "article",
+        "deadline_date",
+        "deadline_type",
+        "description",
+    }
+)
+
+CONNECTED_REGULATIONS_ROW_KEYS = frozenset(
+    {
+        "id",
+        "title",
+        "jurisdiction",
+    }
+)
+
 # Declared schema names on agent cards must map to importable Pydantic models where applicable.
 _SCHEMA_NAME_TO_MODEL: dict[str, type[BaseModel]] = {
     "ExtractedEntities": ExtractedEntities,
@@ -217,6 +255,28 @@ class TestImpactReportVsImpactByRegulationQuery:
         ImpactReport.model_validate(out)
 
 
+class TestAdditionalNamedQueryReturnAliases:
+    """Stable RETURN column names for named Cypher used by MCP / graph consumers."""
+
+    def _assert_row_keys(self, query_name: str, keys: frozenset[str]) -> None:
+        q = QUERIES[query_name]
+        assert q.name == query_name
+        for key in keys:
+            assert f" AS {key}" in q.cypher or f" AS {key}\n" in q.cypher, key
+
+    def test_uncovered_requirements_row_keys_stable(self) -> None:
+        self._assert_row_keys("uncovered_requirements", UNCOVERED_REQUIREMENTS_ROW_KEYS)
+
+    def test_requirements_by_team_row_keys_stable(self) -> None:
+        self._assert_row_keys("requirements_by_team", REQUIREMENTS_BY_TEAM_ROW_KEYS)
+
+    def test_deadlines_by_regulation_row_keys_stable(self) -> None:
+        self._assert_row_keys("deadlines_by_regulation", DEADLINES_BY_REGULATION_ROW_KEYS)
+
+    def test_connected_regulations_row_keys_stable(self) -> None:
+        self._assert_row_keys("connected_regulations", CONNECTED_REGULATIONS_ROW_KEYS)
+
+
 class TestA2ATaskEnvelopeAndRegistry:
     """Agent cards exposed by /agents align with AGENT_CARDS; TaskEnvelope lifecycle."""
 
@@ -312,6 +372,33 @@ class TestMCPToolContract:
         assert result.success is True
         assert result.tool_name == "graph_query"
         assert result.data == [{"stub": True}]
+
+
+class TestInternalErrorResponse:
+    """Unhandled exceptions return a stable JSON body with request correlation."""
+
+    def test_500_body_includes_request_id_matching_header(self) -> None:
+        def _boom() -> None:
+            raise RuntimeError("contract test internal error")
+
+        app.add_api_route("/__contract_500_probe__", _boom, methods=["GET"])
+        probe = TestClient(app, raise_server_exceptions=False)
+        try:
+            r = probe.get(
+                "/__contract_500_probe__",
+                headers={"X-Request-ID": "client-rid-99"},
+            )
+            assert r.status_code == 500
+            body = r.json()
+            assert body.get("code") == "internal_error"
+            assert body.get("request_id") == "client-rid-99"
+            assert r.headers.get("x-request-id") == "client-rid-99"
+        finally:
+            app.router.routes = [
+                route
+                for route in app.router.routes
+                if getattr(route, "path", None) != "/__contract_500_probe__"
+            ]
 
 
 class TestSchemaVersioning:

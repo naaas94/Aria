@@ -20,6 +20,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         request_id = request.headers.get("x-request-id") or uuid4().hex[:12]
+        request.state.request_id = request_id
         structlog.contextvars.bind_contextvars(request_id=request_id)
         try:
             response: Response = await call_next(request)

@@ -7,7 +7,6 @@ build/
 .eggs/
 docs/
 .cursor/
-.dev/
 
 .env
 .venv/

@@ -30,7 +30,11 @@ EVAL_RUNS_DIR = Path(__file__).resolve().parent / "eval_runs"
 
 @dataclass
 class EvalRecord:
-    """A single evaluation observation."""
+    """A single evaluation observation.
+
+    Payloads are scrubbed best-effort when emitted from the golden report; do not
+    put secrets in golden YAML inputs — treat JSONL as review data, not a vault.
+    """
 
     run_id: str
     correlation_id: str

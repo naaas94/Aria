@@ -302,6 +302,11 @@ class LLMClient:
         the first balanced ``{...}`` or ``[...]`` slice to tolerate leading prose
         or malformed wrappers. Trailing text after valid JSON is not accepted if
         the slice parse fails.
+
+        If the first parse fails, a second :meth:`complete` call (repair) is made.
+        Telemetry stores one ``llm_calls`` row per successful :meth:`complete`
+        invocation, so a successful repair produces **two** rows for the same
+        HTTP ``request_id`` (both typically ``attempt=1`` on each call).
         """
         schema_json = json.dumps(output_model.model_json_schema(), indent=2)
         schema_msg = {

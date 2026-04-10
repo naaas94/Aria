@@ -9,7 +9,10 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+import structlog
 
+from aria.observability import telemetry_store as ts_mod
+from aria.observability.telemetry_store import close_telemetry_store, get_telemetry_store
 from aria.orchestration.scratch.edges import (
     route_after_entity_extractor,
     route_after_graph_builder,
@@ -17,7 +20,11 @@ from aria.orchestration.scratch.edges import (
     route_after_ingestion,
     route_after_supervisor,
 )
-from aria.orchestration.scratch.graph import OrchestrationGraph, build_default_graph
+from aria.orchestration.scratch.graph import (
+    ORCHESTRATION_SCRATCH_AGENT_NAME,
+    OrchestrationGraph,
+    build_default_graph,
+)
 from aria.orchestration.scratch.nodes import ToolPorts
 from aria.orchestration.scratch.state import ARIAState
 
@@ -218,3 +225,54 @@ class TestOrchestrationExecution:
         assert "total_duration_ms" in trace
         assert "node_path" in trace
         assert len(trace["steps"]) > 0
+
+
+@pytest.fixture
+def isolated_telemetry_store(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("ARIA_TELEMETRY_DB", ":memory:")
+    close_telemetry_store()
+    yield get_telemetry_store()
+    close_telemetry_store()
+    assert ts_mod._store is None  # noqa: SLF001
+
+
+class TestOrchestrationTelemetry:
+    @pytest.mark.asyncio
+    async def test_execute_records_agent_execution_row(
+        self, isolated_telemetry_store
+    ) -> None:
+        structlog.contextvars.bind_contextvars(request_id="corr-orch-1")
+        try:
+            graph = build_default_graph()
+            tools = MockToolPorts()
+            result = await graph.execute(ARIAState(), tools)
+
+            assert result.success
+            row = isolated_telemetry_store._conn.execute(  # noqa: SLF001
+                "SELECT * FROM agent_executions WHERE agent_name = ?",
+                (ORCHESTRATION_SCRATCH_AGENT_NAME,),
+            ).fetchone()
+            assert row is not None
+            assert row["request_id"] == "corr-orch-1"
+            assert row["status"] == "success"
+            assert row["error"] is None
+            assert row["duration_ms"] == pytest.approx(result.total_duration_ms)
+        finally:
+            structlog.contextvars.unbind_contextvars("request_id")
+
+    @pytest.mark.asyncio
+    async def test_execute_error_records_agent_execution_row(
+        self, isolated_telemetry_store
+    ) -> None:
+        graph = build_default_graph()
+        tools = MockToolPorts(should_fail=True)
+        result = await graph.execute(ARIAState(raw_document="Test doc"), tools)
+
+        assert not result.success
+        row = isolated_telemetry_store._conn.execute(  # noqa: SLF001
+            "SELECT * FROM agent_executions WHERE agent_name = ?",
+            (ORCHESTRATION_SCRATCH_AGENT_NAME,),
+        ).fetchone()
+        assert row is not None
+        assert row["status"] == "error"
+        assert row["error"] is not None

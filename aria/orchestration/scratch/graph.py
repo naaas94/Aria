@@ -11,11 +11,22 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
+import structlog
+
+from aria.observability.metrics import (
+    AGENT_EXECUTION_COUNTER,
+    AGENT_EXECUTION_DURATION,
+    TELEMETRY_WRITE_ERRORS_COUNTER,
+)
+from aria.observability.telemetry_store import get_telemetry_store
 from aria.orchestration.scratch.edges import EDGE_MAP, EdgeFunction
 from aria.orchestration.scratch.nodes import ToolPorts
 from aria.orchestration.scratch.state import ARIAState
 
 logger = logging.getLogger(__name__)
+
+# Synthetic ``agent_name`` for ``agent_executions`` / Prometheus (scratch graph is not BaseAgent).
+ORCHESTRATION_SCRATCH_AGENT_NAME = "orchestration.scratch"
 
 NodeFunction = Callable[[ARIAState, ToolPorts], Awaitable[ARIAState]]
 
@@ -64,6 +75,37 @@ class ExecutionResult:
         }
 
 
+def _record_scratch_orchestration_telemetry(result: ExecutionResult) -> None:
+    """One row per graph run: same store and labels as ``BaseAgent.run()`` (pragmatic aggregate)."""
+    status = "success" if result.success else "error"
+    err = result.final_state.error
+    duration_ms = result.total_duration_ms
+    request_id = structlog.contextvars.get_contextvars().get("request_id")
+
+    try:
+        get_telemetry_store().record_agent_execution(
+            request_id=request_id,
+            agent_name=ORCHESTRATION_SCRATCH_AGENT_NAME,
+            status=status,
+            error=err,
+            duration_ms=duration_ms,
+        )
+    except Exception as exc:
+        TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="orchestration").inc()
+        logger.warning(
+            "record_agent_execution failed for scratch orchestration: %s",
+            type(exc).__name__,
+        )
+
+    AGENT_EXECUTION_COUNTER.labels(
+        agent_name=ORCHESTRATION_SCRATCH_AGENT_NAME,
+        status=status,
+    ).inc()
+    AGENT_EXECUTION_DURATION.labels(
+        agent_name=ORCHESTRATION_SCRATCH_AGENT_NAME,
+    ).observe(duration_ms / 1000.0)
+
+
 class OrchestrationGraph:
     """Stateful graph that executes nodes and follows edges until termination."""
 
@@ -103,6 +145,7 @@ class OrchestrationGraph:
 
             start = time.monotonic()
             prev_state = state
+            error_before = prev_state.error
             try:
                 out = await self._nodes[current](state, tools)
             except Exception as exc:
@@ -127,12 +170,15 @@ class OrchestrationGraph:
             edge_fn = self._edges.get(current)
             next_node = edge_fn(state) if edge_fn else "end"
 
+            trace_error = (
+                state.error if (state.error and not error_before) else None
+            )
             result.traces.append(
                 StepTrace(
                     node_name=current,
                     duration_ms=elapsed_ms,
                     next_node=next_node,
-                    error=state.error,
+                    error=trace_error,
                 )
             )
 
@@ -153,6 +199,7 @@ class OrchestrationGraph:
             logger.error(state.error)
 
         result.final_state = state
+        _record_scratch_orchestration_telemetry(result)
         return result
 
 
