@@ -37,3 +37,5 @@ golden_report.json
 golden_report.xml
 
 tests/eval/eval_runs/
+
+aria_telemetry.db
