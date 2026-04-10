@@ -29,6 +29,7 @@ class LimitIngestBodySizeMiddleware(BaseHTTPMiddleware):
                                 "detail": (
                                     f"Request body exceeds maximum of {max_b} bytes"
                                 ),
+                                "code": "payload_too_large",
                             },
                         )
         return await call_next(request)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from fastapi import APIRouter, Request, Response, status
@@ -12,6 +13,7 @@ from api.config import placeholder_api_enabled
 from api.connections import get_app_connections
 from api.errors import ServiceUnavailableBody
 from aria.llm.client import LLMClient
+from aria.observability.metrics import RETRIEVAL_COUNTER, RETRIEVAL_DURATION
 from aria.retrieval.graph_retriever import GraphRetriever
 from aria.retrieval.hybrid_retriever import HybridRetriever
 
@@ -101,6 +103,7 @@ async def compliance_query(
 
     response.headers["X-ARIA-Mode"] = "live"
     llm = LLMClient()
+    retrieval_start = time.monotonic()
 
     if query_request.use_graph_rag:
         assert conns.neo4j is not None and conns.vector_store is not None
@@ -112,6 +115,8 @@ async def compliance_query(
             graph_hops=1,
         )
         result = await hybrid.retrieve(query_request.question, node_label_hint="Article")
+        RETRIEVAL_COUNTER.labels(strategy=strategy).inc()
+        RETRIEVAL_DURATION.labels(strategy=strategy).observe(time.monotonic() - retrieval_start)
         context = result.context_text
         messages = [
             {
@@ -154,6 +159,8 @@ async def compliance_query(
 
     assert conns.vector_store is not None
     chunks = conns.vector_store.search(query_request.question, top_k=query_request.top_k)
+    RETRIEVAL_COUNTER.labels(strategy=strategy).inc()
+    RETRIEVAL_DURATION.labels(strategy=strategy).observe(time.monotonic() - retrieval_start)
     context = "\n\n".join(f"[{c.score:.3f}] {c.text}" for c in chunks)
     messages = [
         {

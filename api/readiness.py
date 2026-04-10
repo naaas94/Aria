@@ -3,47 +3,24 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
-import httpx
+from fastapi import Request
 
-from aria.graph.client import Neo4jClient
+from api.connections import get_app_connections
 
 logger = logging.getLogger(__name__)
 
 
-async def check_neo4j() -> bool:
-    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-    user = os.getenv("NEO4J_USER", "neo4j")
-    password = os.getenv("NEO4J_PASSWORD", "aria_dev_password")
-    client = Neo4jClient(uri, user, password)
-    try:
-        await client.connect()
-        return await client.health_check()
-    except Exception:
-        logger.debug("Neo4j readiness check failed", exc_info=True)
-        return False
-    finally:
-        await client.close()
-
-
-async def check_chroma() -> bool:
-    host = os.getenv("CHROMA_HOST", "localhost")
-    port = int(os.getenv("CHROMA_PORT", "8000"))
-    url = f"http://{host}:{port}/api/v2/heartbeat"
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as ac:
-            response = await ac.get(url)
-            return response.status_code == 200
-    except Exception:
-        logger.debug("Chroma readiness check failed", exc_info=True)
-        return False
-
-
-async def readiness_payload() -> dict[str, Any]:
-    neo4j_ok = await check_neo4j()
-    chroma_ok = await check_chroma()
+async def readiness_payload(request: Request) -> dict[str, Any]:
+    """Probe dependencies using pooled ``app.state.connections`` (no per-request clients)."""
+    conns = get_app_connections(request)
+    neo4j_ok = False
+    chroma_ok = False
+    if conns.neo4j is not None:
+        neo4j_ok = await conns.neo4j.health_check()
+    if conns.vector_store is not None:
+        chroma_ok = conns.vector_store.health_check()
     if neo4j_ok and chroma_ok:
         status = "ready"
         code = 200

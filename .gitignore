@@ -7,6 +7,7 @@ build/
 .eggs/
 docs/
 .cursor/
+.dev/
 
 .env
 .venv/
@@ -20,6 +21,9 @@ htmlcov/
 
 *.log
 *.pid
+*.db
+*.db-shm
+*.db-wal
 
 .idea/
 .vscode/
@@ -33,3 +37,5 @@ golden_report.json
 golden_report.xml
 
 tests/eval/eval_runs/
+
+aria_telemetry.db

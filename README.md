@@ -103,23 +103,46 @@ Set to `false` to run against Neo4j, Chroma, and an LLM; missing dependencies yi
 |-------|--------|---------|
 | `/health` | GET | Liveness probe |
 | `/ready` | GET | Readiness — probes Neo4j + Chroma; `200` or `503 degraded` |
-| `/ingest/text` | POST | Ingest plain-text regulatory content |
-| `/ingest/file` | POST | Multipart file upload (`text/*`, `application/octet-stream`) |
+| `/ingest/text` | POST | **Chunking smoke path** — hash + in-memory chunks + metrics; **does not** load the knowledge base (see below) |
+| `/ingest/file` | POST | Same as `/ingest/text` for multipart uploads (`text/*`, `application/octet-stream`) |
 | `/query` | POST | Compliance question → grounded answer with sources |
 | `/impact` | GET | Impact / gap summary (placeholder or live) |
 | `/agents` | GET | List registered agent cards |
 | `/agents/{name}` | GET | Single agent card by slug |
 | `/a2a/*` | — | A2A protocol surface (card, tasks, health) |
 
+### How to load documents (developer / offline)
+
+The HTTP `/ingest/*` routes are **not** the full ingestion pipeline: they do not write Neo4j, Chroma, or run entity extraction. They exist to validate request sizing, exercise chunking, and emit metrics.
+
+To actually populate graph + vectors (or exercise the pipeline in code), use **developer-side** paths:
+
+| Path | Role |
+|------|------|
+| `aria/ingestion/pipeline.py` — `ingest_document()` | End-to-end orchestrator for **files on disk** (PDF/HTML): parse → chunk → optional entity extraction, graph write, vector indexing, optional Neo4j-backed dedup (`IngestionRecord`). Pass injectables for extract/graph/vector; without them, behavior reduces to parse + chunk. |
+| `scripts/seed_corpus.py` | Writes sample HTML regulations to a temp dir and calls `ingest_document()` (demo / local runs). |
+| `scripts/seed_graph.py` | Inserts **structured sample** `ExtractedEntities` directly into Neo4j (quick graph for dev; not file-based pipeline ingestion). |
+| `tests/integration/test_ingestion_pipeline.py` | Integration tests for `ingest_document` with real files and mocked Neo4j dedup. |
+
+Live **`POST /query`** (`ARIA_PLACEHOLDER_API=false`) expects an already-populated Neo4j + Chroma; filling them is **not** done by `POST /ingest/text` or `POST /ingest/file` today.
+
 ### Hardening
 
-- **Auth** — set `API_KEY` / `ARIA_API_KEY` to gate all routes (except `/health`) via `X-API-Key` or `Authorization: Bearer`. `A2A_SHARED_SECRET` protects `/a2a/card` and `/a2a/tasks`.
+- **Auth** — set `API_KEY` / `ARIA_API_KEY` to gate all routes except `/health` and `/ready` via `X-API-Key` or `Authorization: Bearer`. `/metrics` and `/telemetry` are also gated unless `ARIA_OBSERVABILITY_PUBLIC=true`. `A2A_SHARED_SECRET` protects `/a2a/card` and `/a2a/tasks`.
 - **Body limits** — `ARIA_MAX_INGEST_BODY_BYTES` (default 12 MiB) enforced at middleware; `INGEST_MAX_BYTES` for multipart uploads. Reverse-proxy enforcement recommended in addition.
 - **CORS** — `CORS_ORIGINS` / `CORS_ALLOW_ORIGINS` (defaults to local dev URLs).
 - **Production mode** — `DEPLOYMENT_ENV=production` disables `/docs` and OpenAPI JSON export.
 - **Contracts** — request bodies use `extra="forbid"` (unknown keys → 422). Contracts carry `SCHEMA_VERSION`; runtime enforcement opt-in via `ARIA_STRICT_SCHEMA_VERSION`.
 - **Error handling** — MCP/A2A failures return generic messages to callers; stack traces stay in server logs. `complete_structured` strips nested markdown fences and recovers balanced JSON from malformed LLM output.
 - **MCP tools** — `list_tools` exposes `input_schema` and `output_schema` (`ToolResult` envelope) for every tool; no arbitrary Cypher from callers.
+
+### Multi-worker and multi-instance deployment
+
+Scaling the API (multiple Uvicorn workers, several containers, or several hosts) is supported for **stateless** request handling, but ingestion deduplication and the default telemetry store are not magically shared across processes.
+
+- **Full ingestion pipeline** — `ingest_document` (`aria/ingestion/pipeline.py`) keeps a per-process in-memory set (`_ingested_hashes`). Without Neo4j-backed state, each worker only knows what it has seen locally, so duplicate documents can be processed more than once. **Pass `neo4j_dedup`** (a `Neo4jClient`) into `ingest_document` so completed content hashes live in Neo4j (`IngestionRecord` nodes) and are loaded on startup; that gives durable idempotency across workers and restarts for a shared graph. (The HTTP `/ingest/text` and `/ingest/file` routes currently chunk only; they do not run this full pipeline.)
+
+- **Telemetry** — HTTP telemetry is persisted to **SQLite** by default (`ARIA_TELEMETRY_DB` in `.env.example`). SQLite uses WAL mode with a per-process connection; concurrent writers from many processes increase lock contention and retries (not a multi-writer log store). If every replica uses its **own local path**, `GET /telemetry` only sees that instance’s file — **fragmented** operational data. For coherent JSON telemetry, prefer a **single writer** (one replica handling telemetry, or one process), **one database file on a shared volume** mounted at the same path for all instances (accepting SQLite’s concurrency limits), or rely on **`GET /metrics` (Prometheus)** / an **external** metrics or log store for high-availability analytics.
 
 ## Data Handling
 
