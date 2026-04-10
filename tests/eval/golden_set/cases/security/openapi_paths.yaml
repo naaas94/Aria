@@ -9,6 +9,8 @@ input:
   expected_paths:
     - /health
     - /ready
+    - /metrics
+    - /telemetry
     - /ingest/text
     - /ingest/file
     - /query

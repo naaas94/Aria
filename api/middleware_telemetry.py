@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 
 import structlog
@@ -9,8 +10,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from aria.observability.metrics import HTTP_REQUEST_COUNTER
+from aria.observability.metrics import HTTP_REQUEST_COUNTER, TELEMETRY_WRITE_ERRORS_COUNTER
 from aria.observability.telemetry_store import get_telemetry_store
+
+logger = logging.getLogger(__name__)
 
 _SKIP_PATHS = frozenset({"/health", "/ready", "/metrics", "/telemetry"})
 
@@ -47,5 +50,9 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
                         method=request.method,
                         status_code=str(status_code),
                     ).inc()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="http_middleware").inc()
+                    logger.warning(
+                        "telemetry middleware write failed: %s",
+                        type(exc).__name__,
+                    )

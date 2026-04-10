@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -12,8 +14,18 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api.config import cors_allow_origins, is_production_deployment
-from api.deps import _configured_api_key, require_api_key_when_configured
+from api.config import (
+    cors_allow_origins,
+    is_production_deployment,
+    observability_public_while_api_key_configured,
+    telemetry_prune_interval_seconds,
+    telemetry_retention_days,
+)
+from api.deps import (
+    _configured_api_key,
+    require_api_key_for_observability,
+    require_api_key_when_configured,
+)
 from api.middleware_body_limit import LimitIngestBodySizeMiddleware
 from api.middleware_request_id import RequestIDMiddleware
 from api.middleware_telemetry import TelemetryMiddleware
@@ -44,12 +56,41 @@ async def lifespan(app: FastAPI):
             "API_KEY / ARIA_API_KEY is not set — authenticated routes are open. "
             "Set API_KEY (or ARIA_API_KEY) for any network-exposed deployment.",
         )
+    elif observability_public_while_api_key_configured():
+        logger.warning(
+            "ARIA_OBSERVABILITY_PUBLIC is set — GET /metrics and GET /telemetry are "
+            "reachable without the API key (path-level traffic stats are exposed). "
+            "Use only on internal networks; prefer reverse-proxy auth or bind to localhost.",
+        )
     connections = await connect_app_dependencies()
     app.state.connections = connections
     get_telemetry_store()
+    prune_task: asyncio.Task[None] | None = None
+    retention_days = telemetry_retention_days()
+    if retention_days is not None:
+
+        async def _telemetry_prune_loop() -> None:
+            interval = telemetry_prune_interval_seconds()
+            store = get_telemetry_store()
+            await asyncio.to_thread(store.prune_older_than, retention_days=retention_days)
+            while True:
+                await asyncio.sleep(interval)
+                try:
+                    await asyncio.to_thread(
+                        store.prune_older_than,
+                        retention_days=retention_days,
+                    )
+                except Exception:
+                    logger.exception("Telemetry DB retention prune failed")
+
+        prune_task = asyncio.create_task(_telemetry_prune_loop())
     try:
         yield
     finally:
+        if prune_task is not None:
+            prune_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await prune_task
         close_telemetry_store()
         await disconnect_app_dependencies(connections)
 
@@ -98,9 +139,11 @@ app.add_middleware(RequestIDMiddleware)
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     code_map = {
         status.HTTP_400_BAD_REQUEST: "bad_request",
-        status.HTTP_404_NOT_FOUND: "not_found",
-        status.HTTP_503_SERVICE_UNAVAILABLE: "service_unavailable",
         status.HTTP_401_UNAUTHORIZED: "unauthorized",
+        status.HTTP_404_NOT_FOUND: "not_found",
+        status.HTTP_413_CONTENT_TOO_LARGE: "payload_too_large",
+        status.HTTP_422_UNPROCESSABLE_CONTENT: "validation_error",
+        status.HTTP_503_SERVICE_UNAVAILABLE: "service_unavailable",
     }
     code = code_map.get(exc.status_code, "http_error")
     hdrs = dict(exc.headers) if exc.headers else None
@@ -142,8 +185,8 @@ app.include_router(query.router, dependencies=_route_auth)
 app.include_router(impact.router, dependencies=_route_auth)
 app.include_router(agents.router, dependencies=_route_auth)
 
-# Unauthenticated (like /health): scrapers and ops dashboards; protect at the edge if needed.
-app.include_router(telemetry.router)
+# Observability: gated like other routes when API_KEY is set (see ARIA_OBSERVABILITY_PUBLIC).
+app.include_router(telemetry.router, dependencies=[Depends(require_api_key_for_observability)])
 
 
 @app.get("/health")
@@ -153,9 +196,9 @@ async def health_check() -> dict[str, str]:
 
 
 @app.get("/ready")
-async def ready_check() -> JSONResponse:
-    """Readiness: Neo4j Bolt + Chroma heartbeat (env-based; does not require app.state)."""
-    payload = await readiness_payload()
+async def ready_check(request: Request) -> JSONResponse:
+    """Readiness: Neo4j + Chroma via pooled connections from lifespan (503 if unwired)."""
+    payload = await readiness_payload(request)
     return JSONResponse(
         status_code=payload["status_code"],
         content=payload["body"],

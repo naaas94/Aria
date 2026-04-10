@@ -7,6 +7,7 @@ resume after partial failures (e.g. graph OK, vector down).
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 from aria.graph.client import Neo4jClient
@@ -27,15 +28,40 @@ async def is_pipeline_complete(client: Neo4jClient, content_hash: str) -> bool:
     return bool(rows)
 
 
-async def list_complete_content_hashes(client: Neo4jClient) -> list[str]:
-    rows = await client.execute_read(
-        f"""
-        MATCH (r:{INGESTION_LABEL})
-        WHERE r.pipeline_complete = true
-        RETURN r.content_hash AS h
-        """,
-    )
-    return [str(row["h"]) for row in rows if row.get("h") is not None]
+async def iter_complete_content_hashes(
+    client: Neo4jClient,
+    *,
+    batch_size: int = 5000,
+) -> AsyncIterator[str]:
+    """Yield ``pipeline_complete`` content hashes in lexicographic order, batched.
+
+    Uses cursor pagination so callers can process very large sets without loading
+    all rows into memory at once. Prefer :func:`is_pipeline_complete` for
+    single-hash idempotency checks (e.g. ingestion dedup).
+    """
+    if batch_size < 1:
+        raise ValueError("batch_size must be at least 1")
+    last: str | None = None
+    while True:
+        rows = await client.execute_read(
+            f"""
+            MATCH (r:{INGESTION_LABEL})
+            WHERE r.pipeline_complete = true
+              AND ($last IS NULL OR r.content_hash > $last)
+            WITH r ORDER BY r.content_hash
+            RETURN r.content_hash AS h
+            LIMIT $lim
+            """,
+            {"last": last, "lim": batch_size},
+        )
+        batch = [str(row["h"]) for row in rows if row.get("h") is not None]
+        if not batch:
+            break
+        for h in batch:
+            yield h
+        if len(batch) < batch_size:
+            break
+        last = batch[-1]
 
 
 async def upsert_ingestion_progress(

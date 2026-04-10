@@ -112,6 +112,17 @@ class VectorStore:
     def count(self) -> int:
         return self.collection.count()
 
+    def health_check(self) -> bool:
+        """Lightweight probe using the existing Chroma HTTP client (no new connections)."""
+        if self._client is None:
+            return False
+        try:
+            self._client.heartbeat()
+            return True
+        except Exception:
+            logger.debug("Chroma health check failed", exc_info=True)
+            return False
+
 
 class RetrievedChunk:
     """A single chunk returned from vector search with its similarity score."""

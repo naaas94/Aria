@@ -1,4 +1,9 @@
-"""SQLite-backed telemetry persistence (shared by LLM, HTTP, and agent writers)."""
+"""SQLite-backed telemetry persistence (shared by LLM, HTTP, and agent writers).
+
+Rows in ``llm_calls``, ``requests``, and ``agent_executions`` are append-only unless pruned.
+For production, either set ``ARIA_TELEMETRY_RETENTION_DAYS`` (in-process periodic ``DELETE`` +
+optional ``VACUUM``) or run an external scheduler with equivalent SQL (see ``.env.example``).
+"""
 
 from __future__ import annotations
 
@@ -204,6 +209,43 @@ class TelemetryStore:
                 (request_id, agent_name, status, error, duration_ms, row_ts),
             )
             self._conn.commit()
+
+    def prune_older_than(
+        self,
+        *,
+        retention_days: int,
+        vacuum: bool = True,
+    ) -> dict[str, int]:
+        """Delete telemetry rows older than ``retention_days`` (UTC), then optionally ``VACUUM``.
+
+        Compares ``ts`` using the same ISO-8601 UTC strings as inserts. Returns per-table
+        deleted row counts (SQLite ``rowcount``, may be ``-1`` if unavailable).
+        """
+        if retention_days < 1:
+            raise ValueError("retention_days must be >= 1")
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        cutoff_s = _since_iso(cutoff)
+        with self._lock:
+            n_llm = self._conn.execute(
+                "DELETE FROM llm_calls WHERE ts < ?",
+                (cutoff_s,),
+            ).rowcount
+            n_req = self._conn.execute(
+                "DELETE FROM requests WHERE ts < ?",
+                (cutoff_s,),
+            ).rowcount
+            n_agent = self._conn.execute(
+                "DELETE FROM agent_executions WHERE ts < ?",
+                (cutoff_s,),
+            ).rowcount
+            self._conn.commit()
+            if vacuum and (n_llm > 0 or n_req > 0 or n_agent > 0):
+                self._conn.execute("VACUUM")
+        return {
+            "llm_calls": n_llm,
+            "requests": n_req,
+            "agent_executions": n_agent,
+        }
 
     def cost_summary(self, since: datetime) -> dict[str, Any]:
         cutoff = _since_iso(since)

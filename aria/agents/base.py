@@ -15,7 +15,11 @@ from typing import Any
 import structlog
 from pydantic import BaseModel
 
-from aria.observability.metrics import AGENT_EXECUTION_COUNTER, AGENT_EXECUTION_DURATION
+from aria.observability.metrics import (
+    AGENT_EXECUTION_COUNTER,
+    AGENT_EXECUTION_DURATION,
+    TELEMETRY_WRITE_ERRORS_COUNTER,
+)
 from aria.observability.telemetry_store import get_telemetry_store
 
 
@@ -82,8 +86,12 @@ class BaseAgent(ABC):
                 error=result.error,
                 duration_ms=result.duration_ms,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="agent").inc()
+            self.logger.warning(
+                "record_agent_execution failed: %s",
+                type(exc).__name__,
+            )
 
         status = "success" if result.success else "error"
         AGENT_EXECUTION_COUNTER.labels(agent_name=self.name, status=status).inc()

@@ -13,12 +13,14 @@ import re
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.main import app
 from aria.contracts.agent_messages import TaskEnvelope, TaskStatus
+from aria.protocols.a2a.client import A2AClient
 from aria.graph.queries import QUERIES, execute_named_query
 from aria.llm.client import LLMClient
 from aria.protocols.a2a.agent_card import AgentCard
@@ -74,11 +76,35 @@ def test_main_api_routes_work_without_credentials_when_api_key_unset() -> None:
 
 def test_rest_routes_require_api_key_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("API_KEY", "test-secret-key")
+    monkeypatch.delenv("ARIA_OBSERVABILITY_PUBLIC", raising=False)
     client = TestClient(app)
     r = client.get("/agents")
     assert r.status_code == 401
     r2 = client.get("/agents", headers={"X-API-Key": "test-secret-key"})
     assert r2.status_code == 200
+
+
+def test_observability_routes_require_api_key_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("API_KEY", "test-secret-key")
+    monkeypatch.delenv("ARIA_OBSERVABILITY_PUBLIC", raising=False)
+    client = TestClient(app)
+    assert client.get("/metrics").status_code == 401
+    assert client.get("/telemetry").status_code == 401
+    headers = {"X-API-Key": "test-secret-key"}
+    assert client.get("/metrics", headers=headers).status_code == 200
+    assert client.get("/telemetry", headers=headers).status_code == 200
+
+
+def test_observability_routes_public_flag_bypasses_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("API_KEY", "test-secret-key")
+    monkeypatch.setenv("ARIA_OBSERVABILITY_PUBLIC", "true")
+    client = TestClient(app)
+    assert client.get("/metrics").status_code == 200
+    assert client.get("/telemetry").status_code == 200
 
 
 def test_health_and_ready_skip_api_key_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -103,6 +129,8 @@ def test_documented_openapi_paths_match_expected_set() -> None:
     expected = {
         "/health",
         "/ready",
+        "/metrics",
+        "/telemetry",
         "/ingest/text",
         "/ingest/file",
         "/query",
@@ -111,7 +139,8 @@ def test_documented_openapi_paths_match_expected_set() -> None:
         "/agents/{agent_name}",
     }
     assert expected == paths, (
-        "Update this test and docs/security_audit_report.md if routes change.\n"
+        "Update this test and tests/eval/golden_set/cases/security/openapi_paths.yaml "
+        "if routes change.\n"
         f"OpenAPI paths: {sorted(paths)}"
     )
 
@@ -180,6 +209,94 @@ def test_a2a_tasks_require_secret_header_when_configured(monkeypatch: pytest.Mon
         headers={"X-A2A-Secret": "super-sekrit"},
     )
     assert good.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a2a_client_delegate_task_401_without_secret_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the peer requires ``X-A2A-Secret``, outbound requests without it get HTTP 401."""
+    monkeypatch.setenv("A2A_SHARED_SECRET", "peer-secret")
+
+    async def handler(payload: dict[str, Any]) -> dict[str, Any]:
+        return {"ok": True}
+
+    card = AgentCard(
+        agent_id="peer",
+        name="peer",
+        description="t",
+        version="0",
+        capabilities=[],
+        endpoint="http://test/a2a",
+    )
+    a2a = A2AServer(card, handler)
+    sub = FastAPI()
+    sub.include_router(a2a.router)
+
+    transport = httpx.ASGITransport(app=sub)
+
+    class _PatchedAsyncClient(httpx.AsyncClient):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            kwargs["transport"] = transport
+            kwargs["base_url"] = "http://test"
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr("aria.protocols.a2a.client.httpx.AsyncClient", _PatchedAsyncClient)
+    monkeypatch.setattr("aria.protocols.a2a.client._a2a_shared_secret_from_env", lambda: "")
+
+    a2a_client = A2AClient()
+    out = await a2a_client.delegate_task(
+        card,
+        task_type="t",
+        input_payload={},
+        source_agent="caller",
+    )
+    assert out.status == TaskStatus.FAILED
+    assert out.error_detail is not None
+    assert "401" in out.error_detail
+
+
+@pytest.mark.asyncio
+async def test_a2a_client_delegate_task_200_with_secret_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``A2AClient`` sends ``X-A2A-Secret`` when ``A2A_SHARED_SECRET`` is set."""
+    monkeypatch.setenv("A2A_SHARED_SECRET", "peer-secret")
+
+    async def handler(payload: dict[str, Any]) -> dict[str, Any]:
+        return {"ok": True}
+
+    card = AgentCard(
+        agent_id="peer",
+        name="peer",
+        description="t",
+        version="0",
+        capabilities=[],
+        endpoint="http://test/a2a",
+    )
+    a2a = A2AServer(card, handler)
+    sub = FastAPI()
+    sub.include_router(a2a.router)
+
+    transport = httpx.ASGITransport(app=sub)
+
+    class _PatchedAsyncClient(httpx.AsyncClient):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            kwargs["transport"] = transport
+            kwargs["base_url"] = "http://test"
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr("aria.protocols.a2a.client.httpx.AsyncClient", _PatchedAsyncClient)
+
+    a2a_client = A2AClient()
+    out = await a2a_client.delegate_task(
+        card,
+        task_type="t",
+        input_payload={},
+        source_agent="caller",
+    )
+    assert out.status == TaskStatus.COMPLETED
+    assert out.output_payload == {"ok": True}
 
 
 def test_api_package_has_no_bearer_or_oauth_dependencies() -> None:

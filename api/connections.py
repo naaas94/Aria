@@ -53,7 +53,7 @@ async def connect_app_dependencies() -> AppConnections:
             neo = Neo4jClient(
                 uri,
                 os.getenv("NEO4J_USER", "neo4j"),
-                os.getenv("NEO4J_PASSWORD", ""),
+                os.getenv("NEO4J_PASSWORD", "aria_dev_password"),
             )
             await neo.connect()
             if await neo.health_check():

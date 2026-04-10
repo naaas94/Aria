@@ -38,3 +38,41 @@ def is_production_deployment() -> bool:
         "production",
         "prod",
     )
+
+
+def telemetry_retention_days() -> int | None:
+    """If set to a positive integer, the API process prunes telemetry older than N days (UTC).
+
+    Unset or invalid values disable automatic in-process retention (use an external job or cron).
+    """
+    raw = os.getenv("ARIA_TELEMETRY_RETENTION_DAYS", "").strip()
+    if not raw:
+        return None
+    try:
+        n = int(raw)
+    except ValueError:
+        return None
+    return n if n > 0 else None
+
+
+def telemetry_prune_interval_seconds() -> int:
+    """Sleep interval between automatic telemetry prunes when retention is enabled (minimum 60s)."""
+    raw = os.getenv("ARIA_TELEMETRY_PRUNE_INTERVAL_SECONDS", "86400").strip()
+    try:
+        return max(60, int(raw))
+    except ValueError:
+        return 86400
+
+
+def observability_public_while_api_key_configured() -> bool:
+    """When true, ``GET /metrics`` and ``GET /telemetry`` skip API key checks.
+
+    Default is false: if ``API_KEY`` / ``ARIA_API_KEY`` is set, observability routes
+    require the same key as the rest of the API. Set this only for internal networks
+    where Prometheus scrapes ``/metrics`` without auth (accept reconnaissance exposure).
+    """
+    return os.getenv("ARIA_OBSERVABILITY_PUBLIC", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )

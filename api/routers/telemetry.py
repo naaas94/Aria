@@ -23,7 +23,14 @@ def _parse_since_iso(raw: str) -> datetime:
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
-            detail="Invalid since: expected ISO8601 datetime",
+            detail=[
+                {
+                    "type": "value_error",
+                    "loc": ["query", "since"],
+                    "msg": "Invalid since: expected ISO8601 datetime",
+                    "input": raw,
+                }
+            ],
         ) from exc
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)

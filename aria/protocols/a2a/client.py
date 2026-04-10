@@ -7,6 +7,7 @@ awaits the response, and validates against the expected schema.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import httpx
@@ -17,6 +18,11 @@ from aria.protocols.a2a.agent_card import AgentCard
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 120.0
+
+
+def _a2a_shared_secret_from_env() -> str:
+    """Return ``A2A_SHARED_SECRET`` for outbound ``X-A2A-Secret`` (patchable in tests)."""
+    return os.getenv("A2A_SHARED_SECRET", "").strip()
 
 
 class A2AClient:
@@ -55,11 +61,17 @@ class A2AClient:
             envelope.task_id, target_card.name, target_card.endpoint,
         )
 
+        headers: dict[str, str] = {}
+        secret = _a2a_shared_secret_from_env()
+        if secret:
+            headers["X-A2A-Secret"] = secret
+
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 response = await client.post(
                     f"{target_card.endpoint}/tasks",
                     json=envelope.model_dump(mode="json"),
+                    headers=headers,
                 )
                 response.raise_for_status()
                 result_data = response.json()

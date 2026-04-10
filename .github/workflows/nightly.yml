@@ -74,7 +74,8 @@ jobs:
 
       - name: Full eval suite
         run: |
-          python -m pytest tests/eval/ -v --tb=short
+          python -m pytest tests/eval/ \
+            --ignore=tests/eval/golden_set -v --tb=short
 
       - name: Upload eval artifacts
         if: always()

@@ -145,9 +145,9 @@ class TestNeo4jIngestionDedup:
 
         with (
             patch(
-                "aria.ingestion.pipeline.list_complete_content_hashes",
+                "aria.ingestion.pipeline.is_pipeline_complete",
                 new_callable=AsyncMock,
-                return_value=[content_hash],
+                return_value=True,
             ),
             patch(
                 "aria.ingestion.pipeline.upsert_ingestion_progress",
@@ -167,9 +167,9 @@ class TestNeo4jIngestionDedup:
 
         with (
             patch(
-                "aria.ingestion.pipeline.list_complete_content_hashes",
+                "aria.ingestion.pipeline.is_pipeline_complete",
                 new_callable=AsyncMock,
-                return_value=[],
+                return_value=False,
             ),
             patch(
                 "aria.ingestion.pipeline.upsert_ingestion_progress",

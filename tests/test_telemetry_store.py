@@ -202,6 +202,53 @@ def test_agent_summary_aggregates(store: TelemetryStore) -> None:
     assert beta["success_rate"] == pytest.approx(1.0)
 
 
+def test_prune_older_than_removes_stale_rows(store: TelemetryStore) -> None:
+    old = datetime.now(timezone.utc) - timedelta(days=90)
+    recent = datetime.now(timezone.utc) - timedelta(days=1)
+    store.record_llm_call(
+        request_id="old",
+        model="m",
+        latency_ms=1.0,
+        status="success",
+        attempt=1,
+        ts=old,
+    )
+    store.record_request(
+        request_id="old-req",
+        method="GET",
+        path="/",
+        status_code=200,
+        latency_ms=1.0,
+        ts=old,
+    )
+    store.record_agent_execution(
+        agent_name="a",
+        status="success",
+        duration_ms=1.0,
+        ts=old,
+    )
+    store.record_request(
+        request_id="new-req",
+        method="POST",
+        path="/x",
+        status_code=201,
+        latency_ms=2.0,
+        ts=recent,
+    )
+    counts = store.prune_older_than(retention_days=30, vacuum=False)
+    assert counts["llm_calls"] == 1
+    assert counts["requests"] == 1
+    assert counts["agent_executions"] == 1
+    assert (
+        store._conn.execute("SELECT COUNT(*) AS n FROM llm_calls").fetchone()["n"] == 0  # noqa: SLF001
+    )
+    assert store._conn.execute("SELECT COUNT(*) AS n FROM requests").fetchone()["n"] == 1  # noqa: SLF001
+    assert (
+        store._conn.execute("SELECT COUNT(*) AS n FROM agent_executions").fetchone()["n"]
+        == 0
+    )
+
+
 def test_llm_error_rate(store: TelemetryStore) -> None:
     now = datetime.now(timezone.utc)
     store.record_llm_call(

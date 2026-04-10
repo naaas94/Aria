@@ -223,16 +223,19 @@ class LLMClient:
                 elapsed_ms = elapsed * 1000.0
                 _rid = structlog.contextvars.get_contextvars().get("request_id")
                 request_id = "" if _rid is None else str(_rid)
-                get_telemetry_store().record_llm_call(
-                    request_id=request_id,
-                    model=self.model,
-                    latency_ms=elapsed_ms,
-                    status="success",
-                    attempt=attempt,
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    cost_usd=cost,
-                )
+                try:
+                    get_telemetry_store().record_llm_call(
+                        request_id=request_id,
+                        model=self.model,
+                        latency_ms=elapsed_ms,
+                        status="success",
+                        attempt=attempt,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        cost_usd=cost,
+                    )
+                except Exception:
+                    pass
                 logger.debug(
                     "LLM response in %.2fs (attempt %d, model=%s)",
                     elapsed, attempt, self.model,
@@ -259,17 +262,20 @@ class LLMClient:
                     request_id = "" if _rid is None else str(_rid)
                     err_elapsed_ms = (time.monotonic() - start) * 1000.0
                     err_status = "timeout" if isinstance(exc, TimeoutError) else "error"
-                    get_telemetry_store().record_llm_call(
-                        request_id=request_id,
-                        model=self.model,
-                        latency_ms=err_elapsed_ms,
-                        status=err_status,
-                        attempt=attempt,
-                        prompt_tokens=None,
-                        completion_tokens=None,
-                        cost_usd=None,
-                        error_type=type(exc).__name__,
-                    )
+                    try:
+                        get_telemetry_store().record_llm_call(
+                            request_id=request_id,
+                            model=self.model,
+                            latency_ms=err_elapsed_ms,
+                            status=err_status,
+                            attempt=attempt,
+                            prompt_tokens=None,
+                            completion_tokens=None,
+                            cost_usd=None,
+                            error_type=type(exc).__name__,
+                        )
+                    except Exception:
+                        pass
                     LLM_CALL_COUNTER.labels(model=self.model, status="error").inc()
                     LLM_CALL_DURATION.labels(model=self.model).observe(err_elapsed_ms / 1000.0)
                     raise

@@ -18,6 +18,12 @@ HTTP_REQUEST_COUNTER = Counter(
     ["method", "status_code"],
 )
 
+TELEMETRY_WRITE_ERRORS_COUNTER = Counter(
+    "aria_telemetry_write_errors_total",
+    "Failures persisting telemetry (SQLite store or Prometheus label increment)",
+    ["source"],
+)
+
 INGESTION_COUNTER = Counter(
     "aria_ingestion_total",
     "Total document ingestion attempts",

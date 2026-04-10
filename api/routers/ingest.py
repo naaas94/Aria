@@ -1,4 +1,10 @@
-"""POST /ingest — trigger document ingestion."""
+"""POST /ingest — HTTP chunking smoke path (not the full ingestion pipeline).
+
+These routes validate request sizing, compute a content hash, run in-memory semantic
+chunking, and record metrics. They do **not** persist chunks, call ``ingest_document``,
+write Neo4j, or index Chroma. For loading documents into the knowledge base, see the
+README section **How to load documents (developer / offline)**.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +18,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from aria.ingestion.chunker import chunk_text
 from aria.observability.metrics import INGESTION_COUNTER, INGESTION_DURATION
 
-router = APIRouter(prefix="/ingest", tags=["ingestion"])
+router = APIRouter(
+    prefix="/ingest",
+    tags=["ingestion"],
+)
 
 _DEFAULT_MAX_BYTES = 10 * 1024 * 1024
 
@@ -34,20 +43,51 @@ def _upload_content_type_allowed(content_type: str | None) -> bool:
 class IngestTextRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    text: str = Field(..., description="Raw regulatory document text")
-    source: str = Field(default="api", description="Source identifier")
+    text: str = Field(
+        ...,
+        description=(
+            "Raw document text to chunk in memory. This does not run the full "
+            "ingestion pipeline (no graph or vector store writes)."
+        ),
+    )
+    source: str = Field(
+        default="api",
+        description="Label stored in chunk metadata for debugging (not persisted server-side).",
+    )
 
 
 class IngestResponse(BaseModel):
-    status: str
-    document_hash: str
-    chunks_produced: int
-    message: str = ""
+    status: str = Field(
+        ...,
+        description="Always ``success`` when chunking completed without error.",
+    )
+    document_hash: str = Field(
+        ...,
+        description="SHA-256 (hex) of the raw body bytes or UTF-8 text.",
+    )
+    chunks_produced: int = Field(
+        ...,
+        description="Number of in-memory chunks produced; chunks are not returned or stored.",
+    )
+    message: str = Field(
+        default="",
+        description="Human-readable summary for operators.",
+    )
 
 
-@router.post("/text", response_model=IngestResponse)
+@router.post(
+    "/text",
+    response_model=IngestResponse,
+    summary="Chunk JSON text (smoke / metrics)",
+    description=(
+        "Runs **in-memory chunking only**: hashes the body, splits into semantic chunks, "
+        "increments Prometheus ingestion metrics. Does **not** invoke "
+        "``aria.ingestion.pipeline.ingest_document``, entity extraction, Neo4j, or Chroma. "
+        "Use offline/developer flows to load documents into the knowledge base."
+    ),
+)
 async def ingest_text(request: IngestTextRequest) -> IngestResponse:
-    """Ingest a regulatory document from raw text."""
+    """Chunk raw text from JSON (see route description)."""
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Empty document text")
 
@@ -73,9 +113,18 @@ async def ingest_text(request: IngestTextRequest) -> IngestResponse:
     )
 
 
-@router.post("/file", response_model=IngestResponse)
+@router.post(
+    "/file",
+    response_model=IngestResponse,
+    summary="Chunk uploaded file (smoke / metrics)",
+    description=(
+        "Same behavior as ``POST /ingest/text`` but reads the request body from multipart "
+        "upload. Decodes bytes as UTF-8 (replacement on errors), then chunks in memory. "
+        "Does **not** persist to Neo4j or Chroma or run the full ingestion pipeline."
+    ),
+)
 async def ingest_file(file: UploadFile = File(...)) -> IngestResponse:
-    """Ingest a regulatory document from an uploaded file."""
+    """Chunk an uploaded file (see route description)."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
