@@ -127,6 +127,7 @@ class TestAPIResponseShapes:
         assert body.get("status") in ("ready", "degraded")
         assert body.get("neo4j") in (True, False)
         assert body.get("chroma") in (True, False)
+        assert body.get("llm") in (True, False)
         if r.status_code == 200:
             assert body.get("status") == "ready"
             assert body["neo4j"] is True and body["chroma"] is True

@@ -2,6 +2,17 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## 2026_04_11
+
+### CLI
+
+- **Typer entry point:** Added dependency **`typer>=0.12`**, package **`aria.cli`** (`aria/cli/main.py` — `typer.Typer` with root callback, **`main()`** invokes the app), and **`[project.scripts]`** console script **`aria`** → **`aria.cli.main:main`**. Subcommands will land in follow-up work; `aria --help` exercises packaging after **`pip install -e .`**.
+
+### Health & readiness
+
+- **Shared dependency assessment:** New package **`aria.health`** (`aria/health/assessment.py`) — **`DependencyReport`** (`neo4j_ok`, `chroma_ok`, `llm_ok`, **`errors`**), **`DependencyConnections`** (protocol aligned with **`api.connections.AppConnections`**), **`assess_app_connections`**, and **`probe_llm_reachable`**. Neo4j/Chroma checks match prior behavior (optional connections, **`health_check`**); LLM uses a minimal **`litellm.acompletion`** with **`LLM_MODEL` / `LLM_BASE_URL` / `LLM_API_KEY`** (short timeout, **`max_tokens=1`**) and **does not** go through **`LLMClient.complete()`**, avoiding telemetry/Prometheus noise on probes. Module docstring documents **/ready policy:** HTTP **200 vs 503** follows **Neo4j + Chroma** only; **`llm`** is always present in JSON; LLM failure does not force 503; frequent probes may incur provider cost — avoid aggressive polling.
+- **`GET /ready`:** **`api/readiness.py`** calls **`assess_app_connections(get_app_connections(request))`** and returns **`neo4j`**, **`chroma`**, **`llm`**, and optional **`errors`**. **`api/main.py`** docstring updated. **`tests/unit/test_health_assessment.py`** (mocked connections / LLM); **`tests/eval/test_api_contracts.py`** and **`tests/fixtures/api_requests.py`** expect **`llm`** on the response.
+
 ## 2026_04_10
 
 ### Configuration
