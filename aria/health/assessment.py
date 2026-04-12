@@ -5,7 +5,9 @@ Kubernetes-style /ready policy (HTTP layer in ``api.readiness``):
 - **LLM** is always reported in JSON as ``llm`` (bool) plus optional per-component messages in
   ``errors``; an unreachable LLM does **not** flip 503, so ingest/query paths that need the graph
   and vector store can still go "ready" while LLM-dependent features may fail at runtime.
-  Frequent probes can incur provider cost or rate limits; avoid aggressive /ready polling.
+- **HTTP GET /ready** uses :class:`LlmReadyProbeCache` (TTL from ``ARIA_READY_LLM_CACHE_TTL_SECONDS``,
+  default 300s) so frequent kube probes do not run a full LiteLLM call every time. CLI / ingest
+  preflight passes the default probe (fresh each call). Set TTL to ``0`` to disable caching.
 """
 
 from __future__ import annotations
@@ -13,6 +15,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -45,6 +49,35 @@ class DependencyConnections(Protocol):
 
     neo4j: Neo4jClient | None
     vector_store: VectorStore | None
+
+
+LlmProbeFn = Callable[[], Awaitable[tuple[bool, str | None]]]
+
+
+class LlmReadyProbeCache:
+    """Caches ``probe_llm_reachable`` results for high-frequency ``GET /ready`` polling.
+
+    Neo4j/Chroma are still checked every request (fast); the LLM probe is the expensive piece.
+    """
+
+    __slots__ = ("_ttl_sec", "_lock", "_expires_at", "_ok", "_err")
+
+    def __init__(self, ttl_seconds: float) -> None:
+        self._ttl_sec = ttl_seconds
+        self._lock = asyncio.Lock()
+        self._expires_at = 0.0
+        self._ok = False
+        self._err: str | None = None
+
+    async def probe(self) -> tuple[bool, str | None]:
+        async with self._lock:
+            now = time.monotonic()
+            if self._ttl_sec > 0.0 and now < self._expires_at:
+                return self._ok, self._err
+            ok, err = await probe_llm_reachable()
+            self._ok, self._err = ok, err
+            self._expires_at = now + self._ttl_sec if self._ttl_sec > 0.0 else 0.0
+            return ok, err
 
 
 async def probe_llm_reachable() -> tuple[bool, str | None]:
@@ -102,16 +135,24 @@ def _assess_chroma_sync(conns: DependencyConnections) -> tuple[bool, str | None]
         return False, f"{type(exc).__name__}: {exc}"[:500]
 
 
-async def assess_app_connections(conns: DependencyConnections) -> DependencyReport:
+async def assess_app_connections(
+    conns: DependencyConnections,
+    *,
+    llm_probe: LlmProbeFn | None = None,
+) -> DependencyReport:
     """Check Neo4j (async), Chroma (sync heartbeat), and LLM (async probe).
+
+    ``llm_probe`` defaults to :func:`probe_llm_reachable`. Pass :meth:`LlmReadyProbeCache.probe`
+    for HTTP ``/ready`` to avoid a full LLM round-trip on every request.
 
     All three run concurrently so worst-case latency is roughly the slowest check, not the sum
     (e.g. Neo4j + LLM overlap instead of stacking).
     """
+    llm_fn = llm_probe if llm_probe is not None else probe_llm_reachable
     (neo4j_ok, neo_err), (chroma_ok, chroma_err), (llm_ok, llm_err) = await asyncio.gather(
         _assess_neo4j(conns),
         asyncio.to_thread(_assess_chroma_sync, conns),
-        probe_llm_reachable(),
+        llm_fn(),
     )
     errors: dict[str, str] = {}
     if neo_err is not None:

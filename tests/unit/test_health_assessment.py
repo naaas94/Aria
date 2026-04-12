@@ -9,6 +9,7 @@ import pytest
 
 from aria.health.assessment import (
     DependencyReport,
+    LlmReadyProbeCache,
     assess_app_connections,
     full_ingest_dependencies_satisfied,
     merge_strict_connection_errors,
@@ -66,6 +67,46 @@ async def test_assess_neo4j_health_raises() -> None:
     assert report.neo4j_ok is False
     assert report.chroma_ok is True
     assert "neo4j" in report.errors
+
+
+@pytest.mark.asyncio
+async def test_assess_app_connections_respects_custom_llm_probe() -> None:
+    neo = MagicMock()
+    neo.health_check = AsyncMock(return_value=True)
+    vs = MagicMock()
+    vs.health_check = MagicMock(return_value=True)
+    calls = 0
+
+    async def fake_llm() -> tuple[bool, str | None]:
+        nonlocal calls
+        calls += 1
+        return True, None
+
+    report = await assess_app_connections(_FakeConns(neo4j=neo, vector_store=vs), llm_probe=fake_llm)
+    assert calls == 1
+    assert report.llm_ok is True
+
+
+@pytest.mark.asyncio
+async def test_llm_ready_probe_cache_reuses_result_within_ttl() -> None:
+    with patch("aria.health.assessment.probe_llm_reachable", new_callable=AsyncMock) as probe:
+        probe.return_value = (True, None)
+        cache = LlmReadyProbeCache(60.0)
+        a = await cache.probe()
+        b = await cache.probe()
+    assert a == (True, None)
+    assert b == (True, None)
+    assert probe.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_llm_ready_probe_cache_ttl_zero_always_fresh() -> None:
+    with patch("aria.health.assessment.probe_llm_reachable", new_callable=AsyncMock) as probe:
+        probe.return_value = (False, "down")
+        cache = LlmReadyProbeCache(0.0)
+        await cache.probe()
+        await cache.probe()
+    assert probe.await_count == 2
 
 
 @pytest.mark.asyncio

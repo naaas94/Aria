@@ -92,7 +92,7 @@ After `pip install -e .`, the **`aria`** console script is available. It loads `
 | **`aria telemetry`** | Rolling window or **`--since`** — same data idea as **`GET /telemetry`**. |
 | **`aria eval`** | Runs the golden eval module (forwards extra args to **pytest**). |
 
-**Readiness (`GET /ready`)** — JSON includes **`neo4j`**, **`chroma`**, and **`llm`** booleans (and optional **`errors`**). **HTTP 200 vs 503** reflects the **data plane only** (Neo4j + Chroma both OK). An LLM failure does **not** force 503, but **`aria ingest`** still requires a healthy LLM in its preflight. Avoid aggressive `/ready` polling against paid LLM endpoints (probes use a minimal LiteLLM call).
+**Readiness (`GET /ready`)** — JSON includes **`neo4j`**, **`chroma`**, and **`llm`** booleans (and optional **`errors`**). **HTTP 200 vs 503** reflects the **data plane only** (Neo4j + Chroma both OK). An LLM failure does **not** force 503, but **`aria ingest`** still requires a healthy LLM in its preflight. The **`llm`** field uses a **cached** minimal LiteLLM probe (default **300s** TTL, `ARIA_READY_LLM_CACHE_TTL_SECONDS`; **`aria status`** and ingest preflight use a fresh probe each run).
 
 ## Tech Stack
 
