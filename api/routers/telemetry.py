@@ -2,25 +2,24 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-import aria.observability.metrics  # noqa: F401
 from fastapi import APIRouter, HTTPException, Query
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import Response
 
+import aria.observability.metrics  # noqa: F401
+from aria.observability.since_parse import parse_since_iso_utc
 from aria.observability.telemetry_store import get_telemetry_store
 
 router = APIRouter(tags=["observability"])
 
 
 def _parse_since_iso(raw: str) -> datetime:
-    s = raw.strip()
-    if s.endswith("Z"):
-        s = s[:-1] + "+00:00"
     try:
-        dt = datetime.fromisoformat(s)
+        return parse_since_iso_utc(raw)
     except ValueError as exc:
+        raw_input = raw
         raise HTTPException(
             status_code=422,
             detail=[
@@ -28,13 +27,10 @@ def _parse_since_iso(raw: str) -> datetime:
                     "type": "value_error",
                     "loc": ["query", "since"],
                     "msg": "Invalid since: expected ISO8601 datetime",
-                    "input": raw,
+                    "input": raw_input,
                 }
             ],
         ) from exc
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
 
 
 @router.get("/metrics")
@@ -58,7 +54,7 @@ async def telemetry_json(
         description="Rolling window length in hours when since is omitted.",
     ),
 ) -> dict[str, object]:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if since is not None and since.strip() != "":
         start = _parse_since_iso(since)
         period = f"since_{since.strip()}"

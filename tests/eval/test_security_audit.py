@@ -113,7 +113,11 @@ def test_health_and_ready_skip_api_key_when_configured(monkeypatch: pytest.Monke
     monkeypatch.setenv("API_KEY", "test-secret-key")
     client = TestClient(app)
     assert client.get("/health").status_code == 200
-    assert client.get("/ready").status_code in (200, 503)
+    ready = client.get("/ready")
+    assert ready.status_code in (200, 503)
+    body = ready.json()
+    assert "llm" in body
+    assert body.get("llm") in (True, False)
 
 
 def test_ingest_file_accepts_upload_when_api_key_unset() -> None:

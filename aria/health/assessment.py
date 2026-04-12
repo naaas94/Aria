@@ -10,6 +10,7 @@ Kubernetes-style /ready policy (HTTP layer in ``api.readiness``):
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
@@ -75,37 +76,48 @@ async def probe_llm_reachable() -> tuple[bool, str | None]:
     return True, None
 
 
-async def assess_app_connections(conns: DependencyConnections) -> DependencyReport:
-    """Check Neo4j (async), Chroma (sync heartbeat), and LLM (async probe)."""
-    errors: dict[str, str] = {}
-
+async def _assess_neo4j(conns: DependencyConnections) -> tuple[bool, str | None]:
     if conns.neo4j is None:
-        neo4j_ok = False
-        errors["neo4j"] = "not configured"
-    else:
-        try:
-            neo4j_ok = await conns.neo4j.health_check()
-            if not neo4j_ok:
-                errors["neo4j"] = "unhealthy"
-        except Exception as exc:
-            neo4j_ok = False
-            errors["neo4j"] = f"{type(exc).__name__}: {exc}"[:500]
-            logger.debug("Neo4j readiness check raised", exc_info=True)
+        return False, "not configured"
+    try:
+        ok = await conns.neo4j.health_check()
+        if not ok:
+            return False, "unhealthy"
+        return True, None
+    except Exception as exc:
+        logger.debug("Neo4j readiness check raised", exc_info=True)
+        return False, f"{type(exc).__name__}: {exc}"[:500]
 
+
+def _assess_chroma_sync(conns: DependencyConnections) -> tuple[bool, str | None]:
     if conns.vector_store is None:
-        chroma_ok = False
-        errors["chroma"] = "not configured"
-    else:
-        try:
-            chroma_ok = conns.vector_store.health_check()
-            if not chroma_ok:
-                errors["chroma"] = "unhealthy"
-        except Exception as exc:
-            chroma_ok = False
-            errors["chroma"] = f"{type(exc).__name__}: {exc}"[:500]
-            logger.debug("Chroma readiness check raised", exc_info=True)
+        return False, "not configured"
+    try:
+        ok = conns.vector_store.health_check()
+        if not ok:
+            return False, "unhealthy"
+        return True, None
+    except Exception as exc:
+        logger.debug("Chroma readiness check raised", exc_info=True)
+        return False, f"{type(exc).__name__}: {exc}"[:500]
 
-    llm_ok, llm_err = await probe_llm_reachable()
+
+async def assess_app_connections(conns: DependencyConnections) -> DependencyReport:
+    """Check Neo4j (async), Chroma (sync heartbeat), and LLM (async probe).
+
+    All three run concurrently so worst-case latency is roughly the slowest check, not the sum
+    (e.g. Neo4j + LLM overlap instead of stacking).
+    """
+    (neo4j_ok, neo_err), (chroma_ok, chroma_err), (llm_ok, llm_err) = await asyncio.gather(
+        _assess_neo4j(conns),
+        asyncio.to_thread(_assess_chroma_sync, conns),
+        probe_llm_reachable(),
+    )
+    errors: dict[str, str] = {}
+    if neo_err is not None:
+        errors["neo4j"] = neo_err
+    if chroma_err is not None:
+        errors["chroma"] = chroma_err
     if not llm_ok:
         errors["llm"] = llm_err or "unreachable"
 
@@ -114,4 +126,30 @@ async def assess_app_connections(conns: DependencyConnections) -> DependencyRepo
         chroma_ok=chroma_ok,
         llm_ok=llm_ok,
         errors=errors,
+    )
+
+
+def full_ingest_dependencies_satisfied(report: DependencyReport) -> bool:
+    """Whether Neo4j, Chroma, and LLM all pass — required for ``aria ingest`` full pipeline.
+
+    Stricter than HTTP ``/ready`` (which may be 200 while LLM is down).
+    """
+    return report.neo4j_ok and report.chroma_ok and report.llm_ok
+
+
+def merge_strict_connection_errors(
+    report: DependencyReport, connection_errors: dict[str, str]
+) -> DependencyReport:
+    """When strict connect recorded a failure, replace generic ``not configured`` messages."""
+    if not connection_errors:
+        return report
+    out = dict(report.errors)
+    for key, msg in connection_errors.items():
+        if out.get(key) == "not configured":
+            out[key] = msg
+    return DependencyReport(
+        neo4j_ok=report.neo4j_ok,
+        chroma_ok=report.chroma_ok,
+        llm_ok=report.llm_ok,
+        errors=out,
     )

@@ -61,17 +61,38 @@ cp .env.example .env
 # 3. Start infrastructure
 docker compose up -d neo4j chromadb
 
-# 4. Seed sample data
-python scripts/seed_graph.py
+# 4. Populate the graph (pick one)
+# Full pipeline from a file — apply Neo4j schema, then ingest (needs Neo4j + Chroma + LLM):
+aria init
+aria ingest path/to/document.pdf
+# Quick structured sample only (no file pipeline):
+# python scripts/seed_graph.py
 
 # 5. Run the API
 uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
+# Or: aria serve
 
 # 6. Run tests
 pytest
 ```
 
 Full-stack Docker (API + DBs): `docker compose --profile full up -d`.
+
+## CLI (`aria`)
+
+After `pip install -e .`, the **`aria`** console script is available. It loads `.env` (via `python-dotenv`) before each subcommand, same as a typical local API process.
+
+| Command | Purpose |
+|---------|---------|
+| **`aria init`** | Connect to Neo4j (`NEO4J_URI`, …) and run `initialize_schema()`. On a fresh database, run **`aria init`** before **`aria ingest`** (or let the first **`aria ingest`** apply schema unless you pass **`--skip-schema`** after init). |
+| **`aria ingest <file>`** | End-to-end ingestion (parse → chunk → entity extraction → Neo4j + Chroma). **Preflight** requires Neo4j, Chroma, **and** LLM to pass; stderr lists `missing: neo4j|chroma|llm: …` on failure. Uses `initialize_schema()` unless **`--skip-schema`** (e.g. after **`aria init`**). |
+| **`aria serve`** | Run **`uvicorn api.main:app`** (host, port, reload). |
+| **`aria status`** | Probes dependencies (`--json` optional); exit **1** if Neo4j or Chroma checks fail (aligned with **`GET /ready`** data-plane gates). |
+| **`aria query`** / **`aria impact`** | Call the same services as **`POST /query`** / **`GET /impact`** in-process (placeholder vs live follows **`ARIA_PLACEHOLDER_API`**). |
+| **`aria telemetry`** | Rolling window or **`--since`** — same data idea as **`GET /telemetry`**. |
+| **`aria eval`** | Runs the golden eval module (forwards extra args to **pytest**). |
+
+**Readiness (`GET /ready`)** — JSON includes **`neo4j`**, **`chroma`**, and **`llm`** booleans (and optional **`errors`**). **HTTP 200 vs 503** reflects the **data plane only** (Neo4j + Chroma both OK). An LLM failure does **not** force 503, but **`aria ingest`** still requires a healthy LLM in its preflight. Avoid aggressive `/ready` polling against paid LLM endpoints (probes use a minimal LiteLLM call).
 
 ## Tech Stack
 
@@ -102,7 +123,7 @@ Set to `false` to run against Neo4j, Chroma, and an LLM; missing dependencies yi
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `/health` | GET | Liveness probe |
-| `/ready` | GET | Readiness — probes Neo4j + Chroma; `200` or `503 degraded` |
+| `/ready` | GET | Readiness — JSON includes `neo4j`, `chroma`, `llm`; HTTP `200` vs `503` is **Neo4j + Chroma** only (see [CLI](#cli-aria)) |
 | `/ingest/text` | POST | **Chunking smoke path** — hash + in-memory chunks + metrics; **does not** load the knowledge base (see below) |
 | `/ingest/file` | POST | Same as `/ingest/text` for multipart uploads (`text/*`, `application/octet-stream`) |
 | `/query` | POST | Compliance question → grounded answer with sources |
@@ -119,6 +140,7 @@ To actually populate graph + vectors (or exercise the pipeline in code), use **d
 
 | Path | Role |
 |------|------|
+| **`aria ingest <file>`** (CLI) | Operator wrapper around the same full pipeline: run **`aria init`** on a fresh DB before first ingest, or let ingest apply schema (skip with **`--skip-schema`** if already initialized). |
 | `aria/ingestion/pipeline.py` — `ingest_document()` | End-to-end orchestrator for **files on disk** (PDF/HTML): parse → chunk → optional entity extraction, graph write, vector indexing, optional Neo4j-backed dedup (`IngestionRecord`). Pass injectables for extract/graph/vector; without them, behavior reduces to parse + chunk. |
 | `scripts/seed_corpus.py` | Writes sample HTML regulations to a temp dir and calls `ingest_document()` (demo / local runs). |
 | `scripts/seed_graph.py` | Inserts **structured sample** `ExtractedEntities` directly into Neo4j (quick graph for dev; not file-based pipeline ingestion). |

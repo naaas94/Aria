@@ -21,6 +21,9 @@ class AppConnections:
     neo4j: Neo4jClient | None = None
     vector_store: VectorStore | None = None
     agent_registry: AgentRegistry = field(default_factory=AgentRegistry)
+    #: Populated when ``connect_app_dependencies(strict=True)`` records infra connection failures
+    #: (distinguishes "unreachable" from "not configured" in CLI status).
+    connection_errors: dict[str, str] = field(default_factory=dict)
 
 
 def get_app_connections(request: Request) -> AppConnections:
@@ -40,8 +43,14 @@ def get_app_connections(request: Request) -> AppConnections:
     return conn
 
 
-async def connect_app_dependencies() -> AppConnections:
-    """Connect optional infrastructure; failures are logged and left as None."""
+async def connect_app_dependencies(*, strict: bool = False) -> AppConnections:
+    """Connect optional infrastructure; failures are logged and left as None.
+
+    When ``strict`` is True (e.g. CLI ``status``), connection failures are recorded in
+    ``connection_errors`` under ``neo4j`` / ``chroma`` so callers can surface unreachable
+    backends instead of only "not configured". Exceptions are still not raised for
+    optional infra unless we add a stricter mode later.
+    """
     connections = AppConnections()
 
     for card in AGENT_CARDS.values():
@@ -60,15 +69,29 @@ async def connect_app_dependencies() -> AppConnections:
                 connections.neo4j = neo
             else:
                 await neo.close()
-        except Exception:
-            logger.exception("Neo4j connection failed; live graph features unavailable")
+                if strict:
+                    connections.connection_errors["neo4j"] = "health check failed"
+        except Exception as exc:
+            if strict:
+                connections.connection_errors["neo4j"] = (
+                    f"{type(exc).__name__}: {exc}"[:500]
+                )
+            else:
+                logger.exception(
+                    "Neo4j connection failed; live graph features unavailable",
+                )
 
     try:
         vs = VectorStore()
         vs.connect()
         connections.vector_store = vs
-    except Exception:
-        logger.exception("ChromaDB connection failed; live vector/query features unavailable")
+    except Exception as exc:
+        if strict:
+            connections.connection_errors["chroma"] = f"{type(exc).__name__}: {exc}"[:500]
+        else:
+            logger.exception(
+                "ChromaDB connection failed; live vector/query features unavailable",
+            )
 
     return connections
 
