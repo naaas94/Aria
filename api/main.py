@@ -204,7 +204,7 @@ async def health_check() -> dict[str, str]:
 
 @app.get("/ready")
 async def ready_check(request: Request) -> JSONResponse:
-    """Readiness: Neo4j + Chroma via pooled connections from lifespan (503 if unwired)."""
+    """Readiness: Neo4j + Chroma gate HTTP status; JSON includes ``llm`` (cached LiteLLM probe)."""
     payload = await readiness_payload(request)
     return JSONResponse(
         status_code=payload["status_code"],

@@ -49,6 +49,7 @@ READY_DEGRADED = HttpExample(
         "service": "aria-api",
         "neo4j": False,
         "chroma": False,
+        "llm": False,
     },
     status_code=503,
 )

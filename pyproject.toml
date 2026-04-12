@@ -26,7 +26,11 @@ dependencies = [
     "prometheus-client>=0.21",
     "python-dotenv>=1.0",
     "structlog>=24.4",
+    "typer>=0.12",
 ]
+
+[project.scripts]
+aria = "aria.cli.main:main"
 
 [project.optional-dependencies]
 dev = [
