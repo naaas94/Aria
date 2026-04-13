@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Awaitable, Callable
 
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -25,11 +26,15 @@ def _should_skip_path(path: str) -> bool:
 class TelemetryMiddleware(BaseHTTPMiddleware):
     """Persist each request to the telemetry store; optional Prometheus counter."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         start = time.monotonic()
         status_code = 500
         try:
-            response = await call_next(request)
+            response: Response = await call_next(request)
             status_code = response.status_code
             return response
         finally:

@@ -39,7 +39,7 @@ class ImpactAnalyzerAgent(BaseAgent):
 
         affected, tasks = self._build_impact(regulation_id, impact_rows)
 
-        coverage_summary = {}
+        coverage_summary: dict[CoverageStatus, int] = {}
         for asset in affected:
             coverage_summary[asset.coverage_status] = (
                 coverage_summary.get(asset.coverage_status, 0) + 1

@@ -7,7 +7,7 @@ expects for its StateGraph API.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 from aria.orchestration.scratch.state import ARIAState
 
@@ -35,7 +35,7 @@ class ARIAStateDict(TypedDict, total=False):
 def pydantic_to_dict(state: ARIAState) -> ARIAStateDict:
     """Convert Pydantic ARIAState to TypedDict for LangGraph."""
     data = state.model_dump()
-    return ARIAStateDict(**data)
+    return cast(ARIAStateDict, data)
 
 
 def dict_to_pydantic(state_dict: dict[str, Any]) -> ARIAState:

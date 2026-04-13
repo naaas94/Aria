@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 import chromadb
 from chromadb.config import Settings
@@ -29,11 +29,11 @@ class VectorStore:
         port: int | None = None,
         collection_name: str = DEFAULT_COLLECTION,
     ) -> None:
-        self._host = host or os.getenv("CHROMA_HOST", "localhost")
-        self._port = port or int(os.getenv("CHROMA_PORT", "8000"))
+        self._host = host or os.getenv("CHROMA_HOST") or "localhost"
+        self._port = port or int(os.getenv("CHROMA_PORT") or "8000")
         self._collection_name = collection_name
-        self._client: chromadb.ClientAPI | None = None
-        self._collection: chromadb.Collection | None = None
+        self._client: Any = None
+        self._collection: Any = None
 
     def connect(self) -> None:
         self._client = chromadb.HttpClient(
@@ -51,7 +51,7 @@ class VectorStore:
         )
 
     @property
-    def collection(self) -> chromadb.Collection:
+    def collection(self) -> Any:
         if self._collection is None:
             raise RuntimeError("VectorStore not connected — call connect() first")
         return self._collection
@@ -94,12 +94,13 @@ class VectorStore:
         retrieved: list[RetrievedChunk] = []
         if results["ids"] and results["ids"][0]:
             for i, chunk_id in enumerate(results["ids"][0]):
+                raw_meta = results["metadatas"][0][i] if results["metadatas"] else {}
                 retrieved.append(
                     RetrievedChunk(
                         chunk_id=chunk_id,
                         text=results["documents"][0][i] if results["documents"] else "",
                         score=1.0 - (results["distances"][0][i] if results["distances"] else 0.0),
-                        metadata=results["metadatas"][0][i] if results["metadatas"] else {},
+                        metadata=cast(dict[str, Any], raw_meta),
                     )
                 )
 
@@ -110,7 +111,7 @@ class VectorStore:
         self.collection.delete(where={"source_hash": source_hash})
 
     def count(self) -> int:
-        return self.collection.count()
+        return cast(int, self.collection.count())
 
     def health_check(self) -> bool:
         """Lightweight probe using the existing Chroma HTTP client (no new connections)."""

@@ -41,7 +41,6 @@ def rerank_results(
     - Graph-only results get a fixed base score of 0.5
     """
     graph_node_ids: set[str] = set()
-    graph_texts: dict[str, str] = {}
     for ctx in graph_contexts:
         graph_node_ids.add(ctx.anchor_id)
         for neighbor in ctx.neighbors:
@@ -74,7 +73,7 @@ def rerank_results(
     return [r for r in results[:max_results] if r.score >= MIN_SCORE_THRESHOLD]
 
 
-def _extract_nested(data: dict, dotted_key: str) -> object | None:
+def _extract_nested(data: dict[str, object], dotted_key: str) -> object | None:
     keys = dotted_key.split(".")
     current: object = data
     for k in keys:

@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 from aria.graph.client import Neo4jClient
-from aria.observability.metrics import MCP_TOOL_CALL_COUNTER, MCP_TOOL_CALL_DURATION
 from aria.graph.queries import execute_named_query
+from aria.observability.metrics import MCP_TOOL_CALL_COUNTER, MCP_TOOL_CALL_DURATION
 from aria.protocols.mcp.tools import (
     TOOL_DEFINITIONS,
     CypherQueryInput,
@@ -146,7 +146,10 @@ class MCPServer:
             *execute_named_query("get_regulation_by_id", {"regulation_id": validated.regulation_id})
         )
         articles = await self._neo4j.execute_read(
-            *execute_named_query("get_regulation_articles", {"regulation_id": validated.regulation_id})
+            *execute_named_query(
+                "get_regulation_articles",
+                {"regulation_id": validated.regulation_id},
+            )
         )
 
         return {
@@ -166,40 +169,40 @@ class MCPToolPortsAdapter:
         self._mcp = mcp_server
         self._llm_fn = llm_generate_fn
 
-    async def extract_entities(self, text: str, doc_hash: str) -> dict:
+    async def extract_entities(self, text: str, doc_hash: str) -> dict[str, Any]:
         from aria.agents.entity_extractor import EntityExtractorAgent
         agent = EntityExtractorAgent()
         return await agent.process({"document_text": text, "document_hash": doc_hash})
 
-    async def write_to_graph(self, entities: dict) -> dict:
+    async def write_to_graph(self, entities: dict[str, Any]) -> dict[str, Any]:
         from aria.agents.graph_builder import GraphBuilderAgent
         agent = GraphBuilderAgent()
         return await agent.process(entities)
 
-    async def index_vectors(self, chunks: list[dict]) -> bool:
+    async def index_vectors(self, chunks: list[dict[str, Any]]) -> bool:
         return True
 
-    async def query_graph(self, query_name: str, params: dict) -> list[dict]:
+    async def query_graph(self, query_name: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         result = await self._mcp.call_tool("graph_query", {
             "query_name": query_name,
             "parameters": params,
         })
         if not result.success:
             raise RuntimeError(result.error)
-        return result.data
+        return cast(list[dict[str, Any]], result.data)
 
-    async def vector_search(self, query: str, top_k: int = 10) -> list[dict]:
+    async def vector_search(self, query: str, top_k: int = 10) -> list[dict[str, Any]]:
         result = await self._mcp.call_tool("vector_search", {
             "query_text": query,
             "top_k": top_k,
         })
         if not result.success:
             raise RuntimeError(result.error)
-        return result.data
+        return cast(list[dict[str, Any]], result.data)
 
-    async def generate_text(self, messages: list[dict]) -> str:
+    async def generate_text(self, messages: list[dict[str, Any]]) -> str:
         if self._llm_fn:
-            return await self._llm_fn(messages)
+            return cast(str, await self._llm_fn(messages))
         from aria.llm.client import LLMClient
         client = LLMClient()
         return await client.complete(messages)
