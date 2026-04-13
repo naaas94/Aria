@@ -2,6 +2,48 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## 2026_04_12
+
+### Ingestion
+
+- **`ingest_document` injectable types (`aria/ingestion/pipeline.py`):** Replaced `entity_extractor`, `graph_writer`, and `vector_indexer: Any | None` with explicit async-callable aliases — **`EntityExtractorFn`**, **`GraphWriterFn`**, **`VectorIndexerFn`** — using **`Callable[[...], Awaitable[...]]`** over **`ExtractedEntities`**, **`GraphWriteStatus`**, and **`list[DocumentChunk]`**, matching the existing docstring contracts.
+- **Rationale:** Aligns the public DI surface with **mypy strict** and editor tooling so call sites are checked against the same shapes the pipeline already assumes at runtime, without changing behavior.
+
+### HTTP (API)
+
+- **`api/main.py` — `_build_fastapi` typing:** The **`FastAPI(...)`** kwargs map is now **`dict[str, Any]`** (with **`from typing import Any`**) instead of an untyped **`dict`**, matching **mypy**-strict style used elsewhere.
+- **Rationale:** Documents the real key/value shapes passed into **`FastAPI`** (strings, optional **`None`** OpenAPI URLs, **`lifespan`**) so static analysis and editors treat **`kwargs`** like the rest of the API package.
+- **Imports:** **Ruff/isort** reordered first-party **`api.*`** imports; removed unused **`os`** and imports that were not referenced in this module (**`AppConnections`**, **`get_app_connections`**).
+- **`lifespan`:** Annotated as **`AsyncIterator[None]`** ( **`AsyncContextManager`** / **`@asynccontextmanager`** ) for explicit async-context typing under strict **mypy**.
+- **`RequestValidationError` handler:** **`validation_error_payload`** is called with **`cast(list[dict[str, Any]], exc.errors())`** so the handler matches the payload helper’s type without changing runtime behavior (**Pydantic** already returns JSON-serializable structures).
+- **Middleware (`api/middleware_*.py`):** **`BaseHTTPMiddleware.dispatch`** overrides now type **`call_next`** as **`Callable[[Request], Awaitable[Response]]`** and annotate **`response: Response`** where needed so middleware matches **Starlette**’s contract under **mypy** strict.
+
+### Tooling
+
+- **`pyproject.toml` — mypy scope (`[tool.mypy]`):** Added **`files = ["aria", "api", "tests"]`** and **`exclude = ["scripts/"]`** so `mypy` (no arguments) only checks library and test code.
+- **Rationale:** `scripts/` has no `__init__.py`; mypy resolved `seed_graph.py` as both a top-level module and `scripts.seed_graph`, causing a duplicate-module crash. Scoping with `files` makes the check deterministic; `exclude` is a belt-and-suspenders backstop.
+- **`[[tool.mypy.overrides]]` for `module = "tests.*"`:** Sets **`disallow_untyped_defs`**, **`disallow_untyped_decorators`**, and **`disallow_incomplete_defs`** to **`false`** for the test tree while keeping the rest of **`strict`**.
+- **Rationale:** Tests previously accounted for most **mypy** noise (fixtures, bare **`dict`**, missing **`-> None`**). Relaxing only those flags keeps production code strict and lets you tighten or exclude modules incrementally (e.g. unit tests first, then eval, then integration).
+- **`[[tool.mypy.overrides]]` — third-party imports:** **`chromadb.*`**, **`pdfplumber.*`**, **`litellm.*`**, **`neo4j.*`**, **`structlog.*`** use **`ignore_missing_imports = true`**.
+- **Rationale:** Those packages often ship without complete inline types or published stubs; without the override, **mypy** reports missing-import noise that does not reflect bugs in **aria**/**api**. You can replace or narrow this later with **`types-*`** wheels or tighter per-module overrides.
+
+### CI
+
+- **Type check step:** Runs **`mypy aria api`** after **`pip install -e ".[dev]"`**.
+- **Rationale:** CI enforces typing on **`aria`** and **`api`** without blocking merges on the full test package; local **`mypy`** (no args) still follows **`pyproject`** and can include **`tests`** with the override above. Aligns pipeline cost with “ship-quality” library/API code first.
+
+### Core (`aria` — typing and small behavior)
+
+- **`aria/contracts/graph_entities.py` — `GraphNode.merge_key`:** Returns **`str`** even when **`properties["id"]`** is not inferred as a string (coerce via **`isinstance`** / **`str()`**).
+- **`aria/agents/impact_analyzer.py`:** **`coverage_summary`** is explicitly **`dict[CoverageStatus, int]`** to satisfy **`var-annotated`** under strict **mypy**.
+- **`aria/llm/client.py`:** Defaults use **`os.getenv(...) or "<default>"`** so empty env strings do not override intentional defaults (and types line up with **Optional**-from-**getenv** patterns).
+- **`aria/observability/logger.py`:** **`log_level`** narrowed when **`level`** is **`None`**; **`get_logger`** **`cast`** to **`structlog.stdlib.BoundLogger`** for a precise return type.
+- **`aria/orchestration/langgraph_reference/`:** Node/state helpers use **`ARIAStateDict`** (**`TypedDict`**) and **`cast`** where **Pydantic** **`model_dump()`** is merged back into graph state; aligns LangGraph stubs with strict typing.
+- **`aria/orchestration/scratch/nodes.py` — `ToolPorts`:** Return and parameter **`dict`** / **`list`** types use **`dict[str, Any]`** / **`list[dict[str, Any]]`** instead of bare generics.
+- **`aria/protocols/mcp/server.py` — `MCPToolPortsAdapter`:** **`cast`** on tool **`result.data`** and LLM paths so list/str returns match declared types.
+- **`aria/retrieval/reranker.py`:** Removed unused **`graph_texts`**; **`_extract_nested`** takes **`dict[str, object]`** for clearer key navigation typing.
+- **`aria/retrieval/vector_store.py`:** Chroma client/collection fields use **`Any`** where third-party stubs are imprecise; **getenv** defaults match the LLM pattern; **`metadata`** / **`count()`** use **`cast`** where the HTTP client returns loosely typed values.
+
 ## 2026_04_11
 
 ### Documentation

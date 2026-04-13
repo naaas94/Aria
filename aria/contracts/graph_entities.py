@@ -49,7 +49,8 @@ class GraphNode(BaseModel):
 
     @property
     def merge_key(self) -> str:
-        return self.properties["id"]
+        rid = self.properties["id"]
+        return rid if isinstance(rid, str) else str(rid)
 
 
 class GraphEdge(BaseModel):

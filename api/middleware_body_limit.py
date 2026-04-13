@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from api import limits
 
@@ -12,7 +14,11 @@ from api import limits
 class LimitIngestBodySizeMiddleware(BaseHTTPMiddleware):
     """Return 413 when ``Content-Length`` exceeds ``limits.MAX_INGEST_BODY_BYTES``."""
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         if request.method == "POST" and request.url.path.startswith("/ingest"):
             cl = request.headers.get("content-length")
             if cl is not None:

@@ -65,3 +65,21 @@ markers = [
 python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
+files = ["aria", "api", "tests"]
+exclude = ["scripts/"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_untyped_decorators = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+    "chromadb.*",
+    "pdfplumber.*",
+    "litellm.*",
+    "neo4j.*",
+    "structlog.*",
+]
+ignore_missing_imports = true

@@ -9,3 +9,5 @@ aria/cli/commands/__init__.py is a bare docstring-only file. Command registratio
 Ingestion wiring tests: The changelog says "vector indexer threading" is tested. The tests exercise the async callable that internally uses asyncio.to_thread, but don't explicitly mock/assert to_thread itself — they test behavior, not the threading mechanism. Reasonable test design.
 
 aria telemetry exits code 2 on invalid --since, which the changelog correctly states. This is distinct from the other commands' exit-1-on-failure pattern — intentional (input validation vs runtime failure).
+
+

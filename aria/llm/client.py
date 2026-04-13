@@ -177,9 +177,9 @@ class LLMClient:
         max_retries: int = 3,
         timeout: float = 120.0,
     ) -> None:
-        self.model = model or os.getenv("LLM_MODEL", "ollama/llama3.2")
-        self.base_url = base_url or os.getenv("LLM_BASE_URL", "http://localhost:11434")
-        self.api_key = api_key or os.getenv("LLM_API_KEY", "not-needed")
+        self.model = model or os.getenv("LLM_MODEL") or "ollama/llama3.2"
+        self.base_url = base_url or os.getenv("LLM_BASE_URL") or "http://localhost:11434"
+        self.api_key = api_key or os.getenv("LLM_API_KEY") or "not-needed"
         self.max_retries = max_retries
         self.timeout = timeout
         _require_non_placeholder_api_key(self.model, self.base_url, self.api_key)

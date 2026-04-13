@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from typing import cast
 
 import structlog
 
@@ -23,7 +24,7 @@ def configure_logging(
         level: Log level (DEBUG, INFO, WARNING, ERROR). Defaults to LOG_LEVEL env var.
         json_format: If True, output JSON. Defaults to LOG_FORMAT env var == "json".
     """
-    log_level = level or os.getenv("LOG_LEVEL", "INFO")
+    log_level: str = level if level is not None else os.getenv("LOG_LEVEL", "INFO")
     use_json = json_format if json_format is not None else (
         os.getenv("LOG_FORMAT", "json") == "json"
     )
@@ -68,4 +69,4 @@ def configure_logging(
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Get a named structured logger."""
-    return structlog.get_logger(name)
+    return cast(structlog.stdlib.BoundLogger, structlog.get_logger(name))

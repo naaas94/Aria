@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -21,24 +22,21 @@ from api.config import (
     telemetry_prune_interval_seconds,
     telemetry_retention_days,
 )
+from api.connections import (
+    connect_app_dependencies,
+    disconnect_app_dependencies,
+)
 from api.deps import (
     _configured_api_key,
     require_api_key_for_observability,
     require_api_key_when_configured,
 )
+from api.errors import ErrorBody, validation_error_payload
 from api.middleware_body_limit import LimitIngestBodySizeMiddleware
 from api.middleware_request_id import RequestIDMiddleware
 from api.middleware_telemetry import TelemetryMiddleware
-from api.connections import (
-    AppConnections,
-    connect_app_dependencies,
-    disconnect_app_dependencies,
-    get_app_connections,
-)
-from api.errors import ErrorBody, validation_error_payload
 from api.readiness import readiness_payload
 from api.routers import agents, impact, ingest, query, telemetry
-
 from aria.observability.logger import configure_logging
 from aria.observability.telemetry_store import close_telemetry_store, get_telemetry_store
 
@@ -50,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not _configured_api_key():
         logger.warning(
             "API_KEY / ARIA_API_KEY is not set — authenticated routes are open. "
@@ -96,7 +94,7 @@ async def lifespan(app: FastAPI):
 
 
 def _build_fastapi() -> FastAPI:
-    kwargs: dict = {
+    kwargs: dict[str, Any] = {
         "title": "ARIA — Automated Regulatory Impact Agent",
         "description": (
             "GraphRAG-powered multi-agent system for regulatory compliance analysis. "
@@ -160,7 +158,7 @@ async def request_validation_handler(
 ) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=validation_error_payload(exc.errors()),
+        content=validation_error_payload(cast(list[dict[str, Any]], exc.errors())),
     )
 
 

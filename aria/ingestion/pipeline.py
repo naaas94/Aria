@@ -13,11 +13,12 @@ skips survive restarts; partial runs store ``pipeline_complete=false`` for ops v
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
 
+from aria.contracts.graph_entities import GraphWriteStatus
 from aria.contracts.regulation import ExtractedEntities
 from aria.graph.client import Neo4jClient
 from aria.graph.ingestion_record import is_pipeline_complete, upsert_ingestion_progress
@@ -85,12 +86,18 @@ def _parse_document(path: Path, fmt: DocumentFormat) -> tuple[str, str]:
         return doc_html.full_text, doc_html.content_hash
 
 
+# Async injectables for :func:`ingest_document` (see docstring Args).
+EntityExtractorFn = Callable[[str, str], Awaitable[ExtractedEntities]]
+GraphWriterFn = Callable[[ExtractedEntities], Awaitable[GraphWriteStatus]]
+VectorIndexerFn = Callable[[list[DocumentChunk]], Awaitable[bool]]
+
+
 async def ingest_document(
     path: str | Path,
     *,
-    entity_extractor: Any | None = None,
-    graph_writer: Any | None = None,
-    vector_indexer: Any | None = None,
+    entity_extractor: EntityExtractorFn | None = None,
+    graph_writer: GraphWriterFn | None = None,
+    vector_indexer: VectorIndexerFn | None = None,
     neo4j_dedup: Neo4jClient | None = None,
     force: bool = False,
 ) -> IngestionResult:
