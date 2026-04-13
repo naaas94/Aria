@@ -77,9 +77,10 @@ disallow_incomplete_defs = false
 [[tool.mypy.overrides]]
 module = [
     "chromadb.*",
-    "pdfplumber.*",
+    "langgraph.*",
     "litellm.*",
     "neo4j.*",
+    "pdfplumber.*",
     "structlog.*",
 ]
 ignore_missing_imports = true

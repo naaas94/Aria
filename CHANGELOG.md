@@ -24,8 +24,8 @@ All notable changes tracked in this folder are listed here (see repo root change
 - **Rationale:** `scripts/` has no `__init__.py`; mypy resolved `seed_graph.py` as both a top-level module and `scripts.seed_graph`, causing a duplicate-module crash. Scoping with `files` makes the check deterministic; `exclude` is a belt-and-suspenders backstop.
 - **`[[tool.mypy.overrides]]` for `module = "tests.*"`:** Sets **`disallow_untyped_defs`**, **`disallow_untyped_decorators`**, and **`disallow_incomplete_defs`** to **`false`** for the test tree while keeping the rest of **`strict`**.
 - **Rationale:** Tests previously accounted for most **mypy** noise (fixtures, bare **`dict`**, missing **`-> None`**). Relaxing only those flags keeps production code strict and lets you tighten or exclude modules incrementally (e.g. unit tests first, then eval, then integration).
-- **`[[tool.mypy.overrides]]` — third-party imports:** **`chromadb.*`**, **`pdfplumber.*`**, **`litellm.*`**, **`neo4j.*`**, **`structlog.*`** use **`ignore_missing_imports = true`**.
-- **Rationale:** Those packages often ship without complete inline types or published stubs; without the override, **mypy** reports missing-import noise that does not reflect bugs in **aria**/**api**. You can replace or narrow this later with **`types-*`** wheels or tighter per-module overrides.
+- **`[[tool.mypy.overrides]]` — third-party imports:** **`chromadb.*`**, **`langgraph.*`**, **`litellm.*`**, **`neo4j.*`**, **`pdfplumber.*`**, **`structlog.*`** use **`ignore_missing_imports = true`**.
+- **Rationale:** Those packages often ship without complete inline types or published stubs; without the override, **mypy** reports missing-import noise that does not reflect bugs in **aria**/**api**. **`langgraph.*`** is also listed because **`langgraph`** is an optional extra (**`aria[langgraph]`**), so default **`pip install -e ".[dev]"`** (e.g. in CI) does not install it; **`langgraph_reference`** imports are runtime-guarded. You can replace or narrow overrides later with **`types-*`** wheels or tighter per-module settings.
 
 ### CI
 
