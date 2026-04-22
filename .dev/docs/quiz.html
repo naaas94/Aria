@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARIA — Knowledge Quiz</title>
+<style>
+:root {
+  --color-background-primary: #0d1117;
+  --color-background-secondary: #161b22;
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-border-tertiary: #30363d;
+  --color-border-secondary: #484f58;
+  --color-background-success: #12261e;
+  --color-background-danger: #2d1117;
+  --color-background-info: #12233d;
+  --color-text-success: #3fb950;
+  --color-text-danger: #f85149;
+  --color-text-info: #58a6ff;
+  --color-border-success: #238636;
+  --color-border-danger: #da3633;
+  --color-border-info: #1f6feb;
+  --border-radius-md: 6px;
+  --border-radius-lg: 12px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  background: transparent;
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.app {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Category bar ── */
+.category-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.category-pill {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border-tertiary);
+  background: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+  cursor: default;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.category-pill.active {
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+  border-color: var(--color-border-info);
+}
+.category-pill.completed {
+  background: var(--color-background-success);
+  color: var(--color-text-success);
+  border-color: var(--color-border-success);
+}
+
+/* ── Metrics ── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.metric-card {
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 12px;
+  text-align: center;
+}
+.metric-card .label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.metric-card .value {
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-top: 2px;
+}
+
+/* ── Question card ── */
+.question-card {
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  padding: 28px 24px 24px;
+}
+.question-topic {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-info);
+  margin-bottom: 12px;
+}
+.question-counter {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  float: right;
+}
+.question-text {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  white-space: pre-line;
+}
+
+/* ── Options grid ── */
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+.option-btn {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  padding: 14px 16px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  line-height: 1.4;
+}
+.option-btn:hover:not(:disabled) {
+  border-color: var(--color-border-secondary);
+}
+.option-btn:disabled { cursor: default; }
+.option-btn.correct {
+  background: var(--color-background-success);
+  border-color: var(--color-border-success);
+  color: var(--color-text-success);
+}
+.option-btn.wrong {
+  background: var(--color-background-danger);
+  border-color: var(--color-border-danger);
+  color: var(--color-text-danger);
+}
+
+/* ── Feedback bar ── */
+.feedback-bar {
+  border-radius: var(--border-radius-md);
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  display: none;
+}
+.feedback-bar.show { display: block; }
+.feedback-bar.correct-fb {
+  background: var(--color-background-success);
+  border: 1px solid var(--color-border-success);
+  color: var(--color-text-success);
+}
+.feedback-bar.wrong-fb {
+  background: var(--color-background-danger);
+  border: 1px solid var(--color-border-danger);
+  color: var(--color-text-danger);
+}
+
+/* ── Next button ── */
+.next-btn {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 12px 24px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border-info);
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+  cursor: pointer;
+  align-self: flex-end;
+  display: none;
+  transition: opacity 0.15s;
+}
+.next-btn:hover { opacity: 0.85; }
+.next-btn.show { display: inline-block; }
+
+/* ── End screen ── */
+.end-screen {
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  padding: 40px 24px;
+  text-align: center;
+  display: none;
+}
+.end-screen.show { display: block; }
+.end-screen h2 {
+  font-size: 22px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.end-screen p {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  margin-bottom: 20px;
+}
+.restart-btn {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 28px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border-info);
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+  cursor: pointer;
+}
+.restart-btn:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="category-bar" id="categoryBar"></div>
+
+  <div class="metrics">
+    <div class="metric-card"><div class="label">Score</div><div class="value" id="score">0</div></div>
+    <div class="metric-card"><div class="label">Correct</div><div class="value" id="correctCount">0 / 0</div></div>
+    <div class="metric-card"><div class="label">Streak</div><div class="value" id="streak">0</div></div>
+  </div>
+
+  <div class="question-card" id="questionCard">
+    <span class="question-counter" id="questionCounter"></span>
+    <div class="question-topic" id="questionTopic"></div>
+    <div class="question-text" id="questionText"></div>
+    <div class="options-grid" id="optionsGrid"></div>
+  </div>
+
+  <div class="feedback-bar" id="feedbackBar"></div>
+  <button class="next-btn" id="nextBtn">Next →</button>
+
+  <div class="end-screen" id="endScreen">
+    <h2 id="endTitle"></h2>
+    <p id="endSummary"></p>
+    <button class="restart-btn" id="restartBtn">Restart Deck</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// QUESTION BANK — one gen() per question
+// ─────────────────────────────────────────────
+const CATEGORIES = [
+  "Project Overview",
+  "Knowledge Graphs",
+  "Property Graph Schema",
+  "GraphRAG vs Vector RAG",
+  "Graph Neural Networks",
+  "MCP Protocol",
+  "A2A Protocol",
+  "Agent Orchestration",
+  "Scratch Engine",
+  "LangGraph Reference",
+  "Evaluation",
+  "Tradeoffs"
+];
+
+function t(q, ans, hint, isText) { return { q, ans, hint: hint || "", isText: !!isText }; }
+
+const QUESTION_BANK = [
+
+  // ═══════════════════════════════════════════
+  // PROJECT OVERVIEW
+  // ═══════════════════════════════════════════
+  { cat: "Project Overview", gen() { return t(
+    "What does ARIA stand for?",
+    "Automated Regulatory Impact Agent",
+    "ARIA = Automated Regulatory Impact Agent — it ingests regulatory documents and answers multi-hop compliance questions.",
+    true
+  ); }},
+  { cat: "Project Overview", gen() { return t(
+    "ARIA answers compliance questions by chaining through how many entity types in its core traversal path (regulation → articles → requirements → systems → teams)?",
+    5,
+    "The chain is: Regulation → Article → Requirement → InternalSystem → Team — five entity types, with a policy-coverage check along the way."
+  ); }},
+  { cat: "Project Overview", gen() { return t(
+    "Which graph database does ARIA use to store its knowledge graph?",
+    "Neo4j",
+    "ARIA uses Neo4j as its property graph store. Cypher is the query language.",
+    true
+  ); }},
+  { cat: "Project Overview", gen() { return t(
+    "Which vector database does ARIA use for chunk embeddings?",
+    "ChromaDB",
+    "ChromaDB stores embedded document chunks for dense retrieval (cosine similarity search).",
+    true
+  ); }},
+  { cat: "Project Overview", gen() { return t(
+    "In ARIA's architecture, what routes work to specialized agents like ingestion, entity extraction, and impact analysis?",
+    "A supervisor",
+    "A supervisor agent classifies intent and delegates to specialized agents — the supervisor pattern is ARIA's core orchestration approach.",
+    true
+  ); }},
+  { cat: "Project Overview", gen() { return t(
+    "Which protocol do ARIA agents use to discover and call tools safely?",
+    "MCP",
+    "MCP (Model Context Protocol) is used for tool exposure — agents discover and call tools like graph_query, vector_search, etc.",
+    true
+  ); }},
+  { cat: "Project Overview", gen() { return t(
+    "Which protocol do ARIA agents use to delegate tasks to each other across process boundaries?",
+    "A2A",
+    "A2A (Agent-to-Agent) protocol handles cross-process delegation using agent cards, registries, and task envelopes.",
+    true
+  ); }},
+  { cat: "Project Overview", gen() { return t(
+    "How many specialized agents does ARIA define (supervisor, ingestion, entity_extractor, graph_builder, impact_analyzer, report_generator)?",
+    6,
+    "Six agents: supervisor, ingestion_agent, entity_extractor, graph_builder, impact_analyzer, and report_generator."
+  ); }},
+  { cat: "Project Overview", gen() { return t(
+    "Documents in ARIA are identified for idempotent re-ingestion by what mechanism?",
+    "Content hash",
+    "Documents are identified by content hash. Re-ingesting the same document is a no-op; graph writes use MERGE (create-or-update).",
+    true
+  ); }},
+  { cat: "Project Overview", gen() { return t(
+    "ARIA ships two orchestration implementations. The scratch version is pedagogical. What framework does the other one use?",
+    "LangGraph",
+    "The LangGraph reference implementation implements the same graph topology using LangGraph's StateGraph to show what the framework buys you.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // KNOWLEDGE GRAPHS
+  // ═══════════════════════════════════════════
+  { cat: "Knowledge Graphs", gen() { return t(
+    "In a property graph (LPG), what are the two primary data containers that carry properties?",
+    "Nodes and edges",
+    "Property graphs store data on nodes (entities) and directed edges (relationships). Both can carry key-value properties.",
+    true
+  ); }},
+  { cat: "Knowledge Graphs", gen() { return t(
+    "What query language does Neo4j use for pattern matching on property graphs?",
+    "Cypher",
+    "Cypher is Neo4j's declarative pattern-matching language, using ASCII-art-like syntax for graph patterns.",
+    true
+  ); }},
+  { cat: "Knowledge Graphs", gen() { return t(
+    "RDF expresses knowledge as a set of what atomic unit?",
+    "Triples",
+    "RDF uses triples: (subject, predicate, object). Subjects/objects are often IRIs; predicates come from shared vocabularies.",
+    true
+  ); }},
+  { cat: "Knowledge Graphs", gen() { return t(
+    "What is the W3C query language used for RDF graphs?",
+    "SPARQL",
+    "SPARQL is the W3C standard query language for RDF triple stores.",
+    true
+  ); }},
+  { cat: "Knowledge Graphs", gen() { return t(
+    "ARIA does NOT pass user-supplied Cypher to the database. Instead, it uses what kind of queries?",
+    "Named parameterized queries",
+    "aria/graph/queries.py registers named CypherQuery objects with fixed Cypher strings and explicit parameter_names. Only these registered names are valid.",
+    true
+  ); }},
+  { cat: "Knowledge Graphs", gen() { return t(
+    "In Neo4j, what idempotent operation creates a node if absent or updates it if present?",
+    "MERGE",
+    "MERGE is the idempotent upsert primitive: match on key properties or create if absent. ARIA favors MERGE on 'id' so re-runs don't duplicate entities.",
+    true
+  ); }},
+  { cat: "Knowledge Graphs", gen() { return t(
+    "Graphs tend to beat relational databases when questions are inherently what?",
+    "Navigational",
+    "Questions like 'regulation → article → requirement → system → team' are inherently navigational — they map to multi-hop graph patterns, not chains of SQL joins.",
+    true
+  ); }},
+  { cat: "Knowledge Graphs", gen() { return t(
+    "How many node labels does ARIA define (Regulation, Article, Requirement, PolicyDocument, InternalSystem, Team, Jurisdiction, Deadline)?",
+    8,
+    "Eight labels: Regulation, Article, Requirement, PolicyDocument, InternalSystem, Team, Jurisdiction, and Deadline."
+  ); }},
+  { cat: "Knowledge Graphs", gen() { return t(
+    "In ARIA's Cypher query library, what does the 'expand_two_hops' query use for bounded variable-length paths?",
+    "[*1..2]",
+    "The two-hop expansion uses pattern (n)-[*1..2]-(neighbor) to match paths of length 1 or 2 from the anchor node.",
+    true
+  ); }},
+  { cat: "Knowledge Graphs", gen() { return t(
+    "Which ARIA module wraps the Neo4j driver and executes named read queries?",
+    "aria/graph/client.py",
+    "Neo4jClient in aria/graph/client.py is the async Neo4j driver wrapper used by GraphRetriever and MCP tools.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // PROPERTY GRAPH SCHEMA
+  // ═══════════════════════════════════════════
+  { cat: "Property Graph Schema", gen() { return t(
+    "What single property does ARIA use as the merge key for ALL node labels?",
+    "id",
+    "NODE_MERGE_KEYS maps every NodeLabel to 'id' — one canonical business key per entity type for simplicity.",
+    true
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "What relationship type connects Regulation → Article in the ARIA schema?",
+    "CONTAINS",
+    "CONTAINS represents hierarchical containment: a Regulation CONTAINS Articles.",
+    true
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "What relationship type connects Article → Requirement?",
+    "IMPOSES",
+    "An Article IMPOSES a Requirement — mapping legal text to a normalized obligation.",
+    true
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "What relationship type represents that a Requirement is covered by a PolicyDocument?",
+    "ADDRESSED_BY",
+    "ADDRESSED_BY connects Requirement → PolicyDocument, showing coverage. Gap queries check for missing ADDRESSED_BY edges.",
+    true
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "What relationship type connects Requirement → InternalSystem?",
+    "AFFECTS",
+    "AFFECTS means a requirement impacts a specific internal system in the organization.",
+    true
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "Both PolicyDocument and InternalSystem connect to Team via what relationship type?",
+    "OWNED_BY",
+    "OWNED_BY connects both PolicyDocument → Team and InternalSystem → Team, tracking organizational ownership.",
+    true
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "How many valid directed edge patterns are defined in ARIA's VALID_EDGES list?",
+    10,
+    "Ten triples: CONTAINS, IMPOSES, AMENDS, REFERENCES, APPLIES_IN, AFFECTS, ADDRESSED_BY, two OWNED_BY patterns, and HAS_DEADLINE."
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "Why does ARIA model Deadlines as separate nodes rather than date properties on Article?",
+    "They can be shared, revised, or traversed as first-class events",
+    "Deadline nodes support MERGE, GraphRAG traversal via HAS_DEADLINE, and avoid overloading articles with multiple dates.",
+    true
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "What data structure in aria/graph/schema.py restricts which (source, relationship, target) triples are allowed?",
+    "VALID_EDGES",
+    "VALID_EDGES is a list of allowed (source_label, EdgeType, target_label) triples — a lightweight schema guard against garbage edges.",
+    true
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "What kind of Neo4j DDL does generate_constraint_statements() produce for each node label?",
+    "Uniqueness constraints on id",
+    "For each label, it generates CREATE CONSTRAINT … REQUIRE n.id IS UNIQUE, preventing duplicate entities.",
+    true
+  ); }},
+  { cat: "Property Graph Schema", gen() { return t(
+    "What relationship types connect Regulation → Regulation for cross-instrument linkage?",
+    "AMENDS and REFERENCES",
+    "AMENDS and REFERENCES are both Regulation → Regulation relationships for tracking amendment chains and cross-references.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // GRAPHRAG vs VECTOR RAG
+  // ═══════════════════════════════════════════
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "What are the four steps of ARIA's hybrid query phase?",
+    "Embed, Anchor, Expand, Fuse",
+    "Embed → Anchor (vector hits supply starting nodes) → Expand (graph traversal from anchors) → Fuse (rerank merged evidence).",
+    true
+  ); }},
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "In ARIA's reranker, what is the GRAPH_BOOST value added to chunks that appear in graph neighborhoods?",
+    0.15,
+    "GRAPH_BOOST = 0.15. Chunks found in both vector results and graph neighborhoods get a 0.15 boost to their score."
+  ); }},
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "How many of the top vector chunks does ARIA use as anchor candidates for graph expansion?",
+    5,
+    "For each of the first five chunks (vector_chunks[:5]), the retriever reads node_id from metadata for graph expansion."
+  ); }},
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "What is the default value of graph_hops in HybridRetriever?",
+    1,
+    "Default graph_hops is 1 (uses expand_one_hop). Setting it to 2 uses expand_two_hops for deeper paths."
+  ); }},
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "What is the default vector_top_k in HybridRetriever?",
+    10,
+    "vector_top_k defaults to 10 — the breadth of semantic recall from ChromaDB."
+  ); }},
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "ARIA's reranker is described as what kind of scoring approach (not a learned cross-encoder)?",
+    "Interpretable heuristic",
+    "The reranker uses an interpretable heuristic: base = vector similarity + GRAPH_BOOST if seen in graph. No ML model is trained.",
+    true
+  ); }},
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "What graph feature does the full Microsoft GraphRAG paper include that ARIA intentionally omits?",
+    "Community detection",
+    "ARIA omits Leiden-style community detection and community summary embedding. Faster indexing, smaller codebase, but less global summarization.",
+    true
+  ); }},
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "What is the default node_label_hint used in HybridRetriever when expanding graph anchors?",
+    "Article",
+    "node_label_hint defaults to 'Article' because chunks often anchor to article-level nodes. Misalignment with actual metadata reduces match quality.",
+    true
+  ); }},
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "Vector RAG is strong at semantic fuzziness. What key weakness does it have for compliance questions?",
+    "Lost relational context",
+    "Vector RAG loses relational context — chunks mentioning a requirement and a system may not co-occur, and multi-hop paths aren't captured by embeddings.",
+    true
+  ); }},
+  { cat: "GraphRAG vs Vector RAG", gen() { return t(
+    "What base score does the reranker assign to graph-only anchors that are NOT in vector results?",
+    0.5,
+    "Graph-only anchors not in vector results get a fixed base of 0.5 plus the GRAPH_BOOST (0.15), totaling 0.65."
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // GRAPH NEURAL NETWORKS
+  // ═══════════════════════════════════════════
+  { cat: "Graph Neural Networks", gen() { return t(
+    "What is the unifying idea behind all GNN architectures?",
+    "Neural message passing",
+    "Each iteration, nodes aggregate information from neighbors, transform it with learned parameters, and update hidden representations.",
+    true
+  ); }},
+  { cat: "Graph Neural Networks", gen() { return t(
+    "What are the three steps of the MPNN (Message Passing Neural Network) pattern?",
+    "Message, Aggregate, Update",
+    "1. Message: compute m_uv from sender/receiver/edge features. 2. Aggregate: combine messages from neighbors. 3. Update: produce new node embedding.",
+    true
+  ); }},
+  { cat: "Graph Neural Networks", gen() { return t(
+    "Which GNN architecture replaces fixed aggregation weights with learned attention coefficients?",
+    "GAT",
+    "Graph Attention Network (GAT) uses attention to learn how much each neighbor matters, with multiple attention heads for different motifs.",
+    true
+  ); }},
+  { cat: "Graph Neural Networks", gen() { return t(
+    "What does GraphSAGE stand for?",
+    "SAmple and aggreGatE",
+    "GraphSAGE = SAmple and aggreGatE. It samples a fixed number of neighbors per hop and aggregates, enabling inductive learning on unseen nodes.",
+    true
+  ); }},
+  { cat: "Graph Neural Networks", gen() { return t(
+    "What problem occurs when many GNN layers are stacked, causing node representations to converge?",
+    "Oversmoothing",
+    "Repeated message passing makes node representations converge toward similar vectors, erasing local distinctions — the oversmoothing problem.",
+    true
+  ); }},
+  { cat: "Graph Neural Networks", gen() { return t(
+    "GCN's spatial view aggregation is similar to what kind of filter on graph signals?",
+    "Low-pass filter",
+    "GCN's normalized sum/mean of neighbor features acts like a low-pass filter — good for homophily where connected nodes resemble each other.",
+    true
+  ); }},
+  { cat: "Graph Neural Networks", gen() { return t(
+    "In ARIA, does the retrieval stack use a trained GNN or symbolic graph traversal?",
+    "Symbolic graph traversal",
+    "ARIA uses symbolic Neo4j nodes/edges + Cypher, NOT trained GNN encoders. GraphRAG is symbolic retrieval, not differentiable graph learning.",
+    true
+  ); }},
+  { cat: "Graph Neural Networks", gen() { return t(
+    "What type of GNN model assigns type-specific transformations for graphs with multiple node/edge types?",
+    "R-GCN",
+    "Relational GCNs (R-GCN) assign type-specific transformations for heterogeneous graphs. HGT is another architecture for this.",
+    true
+  ); }},
+  { cat: "Graph Neural Networks", gen() { return t(
+    "In GNN terminology, what is the difference between transductive and inductive learning?",
+    "Transductive trains on fixed nodes; inductive generalizes to unseen nodes",
+    "Transductive: all nodes exist at training time. Inductive: expects new nodes at test time (GraphSAGE-style). Leakage across edges is a key pitfall.",
+    true
+  ); }},
+  { cat: "Graph Neural Networks", gen() { return t(
+    "After k layers of message passing, a node's embedding captures roughly what neighborhood size?",
+    "k-hop neighborhood",
+    "Stacking k GNN layers gives each node a receptive field of roughly its k-hop neighborhood, analogous to k-hop Cypher traversal.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // MCP PROTOCOL
+  // ═══════════════════════════════════════════
+  { cat: "MCP Protocol", gen() { return t(
+    "What does MCP stand for?",
+    "Model Context Protocol",
+    "MCP = Model Context Protocol — an open standard for connecting LLM applications to external data sources and tools.",
+    true
+  ); }},
+  { cat: "MCP Protocol", gen() { return t(
+    "How many tools does ARIA's MCP server expose (graph_query, vector_search, hybrid_retrieve, fetch_regulation)?",
+    4,
+    "Four tools: graph_query, vector_search, hybrid_retrieve, and fetch_regulation."
+  ); }},
+  { cat: "MCP Protocol", gen() { return t(
+    "What MCP method allows clients to discover available tools with metadata and JSON Schema?",
+    "list_tools()",
+    "list_tools() implements tool discovery — it returns the list of TOOL_DEFINITIONS with name, description, and input_schema.",
+    true
+  ); }},
+  { cat: "MCP Protocol", gen() { return t(
+    "The graph_query tool does NOT accept raw Cypher. What does it accept instead?",
+    "A named query name",
+    "CypherQueryInput takes a query_name that resolves against the registered QUERIES dictionary — only pre-registered names are valid.",
+    true
+  ); }},
+  { cat: "MCP Protocol", gen() { return t(
+    "What standard result envelope does ARIA's MCP server use for all tool responses?",
+    "ToolResult",
+    "ToolResult has tool_name, success (bool), optional data, and optional error — uniform success and failure reporting.",
+    true
+  ); }},
+  { cat: "MCP Protocol", gen() { return t(
+    "What adapter bridges ARIA's MCPServer to the ToolPorts protocol used by the scratch orchestration engine?",
+    "MCPToolPortsAdapter",
+    "MCPToolPortsAdapter adapts MCPServer to the ToolPorts protocol in scratch/nodes.py, calling call_tool with dict arguments.",
+    true
+  ); }},
+  { cat: "MCP Protocol", gen() { return t(
+    "MCP exposes three categories of capabilities to LLM clients. Tools, resources, and what?",
+    "Prompts",
+    "MCP servers can expose tools, resources, and prompts — the model discovers all three via the protocol.",
+    true
+  ); }},
+  { cat: "MCP Protocol", gen() { return t(
+    "What is the maximum top_k allowed by the vector_search tool's schema?",
+    50,
+    "VectorSearchInput bounds top_k between 1 and 50 per the Pydantic schema."
+  ); }},
+  { cat: "MCP Protocol", gen() { return t(
+    "What key security benefit does ARIA gain by using named queries through MCP instead of raw Cypher?",
+    "Prevents injection attacks",
+    "Named parameterized queries prevent Cypher injection, narrow blast radius, and support audit trails of which query ran with which parameters.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // A2A PROTOCOL
+  // ═══════════════════════════════════════════
+  { cat: "A2A Protocol", gen() { return t(
+    "What does A2A stand for in the context of ARIA?",
+    "Agent-to-Agent",
+    "A2A = Agent-to-Agent protocol — describes how agents discover peers, advertise capabilities, and delegate work across boundaries.",
+    true
+  ); }},
+  { cat: "A2A Protocol", gen() { return t(
+    "What machine-readable descriptor advertises an agent's identity, capabilities, and endpoint?",
+    "Agent Card",
+    "AgentCard (Pydantic model) has agent_id, name, version, capabilities list, input/output schemas, and endpoint URL.",
+    true
+  ); }},
+  { cat: "A2A Protocol", gen() { return t(
+    "What data structure carries task_id, status, source_agent, target_agent, and payloads for A2A delegation?",
+    "TaskEnvelope",
+    "TaskEnvelope carries task identity, routing, status (pending/in_progress/completed/failed/cancelled), input/output payloads, and error details.",
+    true
+  ); }},
+  { cat: "A2A Protocol", gen() { return t(
+    "How many possible TaskStatus values exist (pending, in_progress, completed, failed, cancelled)?",
+    5,
+    "Five statuses: pending, in_progress, completed, failed, and cancelled."
+  ); }},
+  { cat: "A2A Protocol", gen() { return t(
+    "What does AgentRegistry.find_by_capability() return?",
+    "All agent cards matching a capability tag",
+    "find_by_capability returns all AgentCards that advertise a given capability tag — used by supervisors to find who can do what.",
+    true
+  ); }},
+  { cat: "A2A Protocol", gen() { return t(
+    "What HTTP endpoint does A2AServer expose for receiving delegated tasks?",
+    "POST /a2a/tasks",
+    "A2AServer has POST /tasks (under /a2a prefix) which accepts a TaskEnvelope, runs the handler, and returns the updated envelope.",
+    true
+  ); }},
+  { cat: "A2A Protocol", gen() { return t(
+    "What is the default HTTP timeout for A2AClient when delegating tasks?",
+    120,
+    "Default timeout is 120 seconds to accommodate long-running LLM or graph work."
+  ); }},
+  { cat: "A2A Protocol", gen() { return t(
+    "A2A handles agent-level delegation. MCP handles what level?",
+    "Tool-level operations",
+    "MCP = fine-grained tool operations (graph_query, vector_search). A2A = coarse-grained agent tasks (impact analysis, report generation). They are complementary.",
+    true
+  ); }},
+  { cat: "A2A Protocol", gen() { return t(
+    "What company publicly positioned the Agent2Agent (A2A) protocol as an open approach in 2025?",
+    "Google",
+    "Google's Agent2Agent (A2A) protocol was publicly positioned in 2025 as an open approach to interoperable agents.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // AGENT ORCHESTRATION
+  // ═══════════════════════════════════════════
+  { cat: "Agent Orchestration", gen() { return t(
+    "ARIA uses which orchestration pattern as its primary outer loop?",
+    "Supervisor",
+    "ARIA adopts a Supervisor pattern: a dedicated controller classifies intent and routes to specialized workers (nodes), backed by a stateful graph engine.",
+    true
+  ); }},
+  { cat: "Agent Orchestration", gen() { return t(
+    "What pattern interleaves natural-language 'thought' steps with tool calls in a loop?",
+    "ReAct",
+    "ReAct (Reasoning + Acting) interleaves thoughts and actions. ARIA does NOT use it as the outer loop — individual agents may use tool-calling internally.",
+    true
+  ); }},
+  { cat: "Agent Orchestration", gen() { return t(
+    "What pattern first produces an explicit plan, then executes steps sequentially or in parallel?",
+    "Plan-Execute",
+    "Plan-Execute: first plan (steps, dependencies), then execute. Good for batch jobs, but planning overhead and staleness can be issues.",
+    true
+  ); }},
+  { cat: "Agent Orchestration", gen() { return t(
+    "What pattern uses a critic or the same model to revise output based on feedback?",
+    "Reflection",
+    "Reflection: after initial output, revise using self-critique, rubric, or test harness. Not wired into ARIA's default graph but could be added.",
+    true
+  ); }},
+  { cat: "Agent Orchestration", gen() { return t(
+    "If ARIAState has raw_document set, the supervisor classifies intent as what?",
+    "ingestion",
+    "raw_document present → intent is 'ingestion'. With regulation_id and query → 'gap_analysis'. regulation_id alone → 'impact_query'. query alone → 'free_query'.",
+    true
+  ); }},
+  { cat: "Agent Orchestration", gen() { return t(
+    "What is the ingestion path through ARIA's orchestration graph?",
+    "supervisor → ingestion → graph_builder → (impact_analyzer) → end",
+    "Ingestion: supervisor → ingestion → graph_builder → optionally impact_analyzer if regulation_id exists → end.",
+    true
+  ); }},
+  { cat: "Agent Orchestration", gen() { return t(
+    "What is the impact query path through ARIA's orchestration graph?",
+    "supervisor → impact_analyzer → report_generator → end",
+    "Impact query: supervisor routes to impact_analyzer, which queries the graph, then report_generator produces the final report.",
+    true
+  ); }},
+  { cat: "Agent Orchestration", gen() { return t(
+    "What advantage does the supervisor + graph pattern trade flexibility for?",
+    "Predictability and testability",
+    "Supervisor + graph trades flexibility for predictability, testability, and clear per-node metrics — aligned with regulatory reporting needs.",
+    true
+  ); }},
+  { cat: "Agent Orchestration", gen() { return t(
+    "The supervisor pattern can be avoided when every decision should be fully what?",
+    "Emergent from a single agent",
+    "Avoid supervisor when routing logic is trivial or every decision should be fully emergent — supervisor overhead adds little in those cases.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // SCRATCH ENGINE
+  // ═══════════════════════════════════════════
+  { cat: "Scratch Engine", gen() { return t(
+    "What are the four components of ARIA's scratch stateful graph engine?",
+    "State, Nodes, Edges, Execution engine",
+    "State (typed shared data), Nodes (callable units), Edges (routing functions), and the Execution engine (loop until termination).",
+    true
+  ); }},
+  { cat: "Scratch Engine", gen() { return t(
+    "What is the function signature for scratch node functions?",
+    "async def node(state: ARIAState, tools: ToolPorts) -> ARIAState",
+    "Nodes are async functions taking (ARIAState, ToolPorts) and returning updated ARIAState. Side effects go through ToolPorts.",
+    true
+  ); }},
+  { cat: "Scratch Engine", gen() { return t(
+    "What Protocol defines async methods like extract_entities, write_to_graph, query_graph, and generate_text?",
+    "ToolPorts",
+    "ToolPorts is a typing.Protocol in scratch/nodes.py. Concrete adapters like MCPToolPortsAdapter supply behavior.",
+    true
+  ); }},
+  { cat: "Scratch Engine", gen() { return t(
+    "What is the MAX_STEPS safety cap in OrchestrationGraph.execute()?",
+    20,
+    "MAX_STEPS = 20. If the loop exceeds this, it sets an error on state to prevent infinite execution."
+  ); }},
+  { cat: "Scratch Engine", gen() { return t(
+    "What dataclass captures node_name, duration_ms, next_node, and error for each execution step?",
+    "StepTrace",
+    "StepTrace records telemetry per step. ExecutionResult aggregates all StepTraces and provides node_path and to_trace_dict().",
+    true
+  ); }},
+  { cat: "Scratch Engine", gen() { return t(
+    "What type alias is used for edge routing functions in scratch/edges.py?",
+    "EdgeFunction = Callable[[ARIAState], str]",
+    "EdgeFunction takes ARIAState and returns a string (the next node name). EDGE_MAP maps source node names to these functions.",
+    true
+  ); }},
+  { cat: "Scratch Engine", gen() { return t(
+    "What happens when state.has_error is true and the computed next_node is not 'end'?",
+    "The engine forces next_node to 'end'",
+    "The execution loop checks: if state.has_error and next_node != 'end', it forces next_node = 'end' as a safety guardrail.",
+    true
+  ); }},
+  { cat: "Scratch Engine", gen() { return t(
+    "What function creates the default OrchestrationGraph with all standard nodes wired up?",
+    "build_default_graph()",
+    "build_default_graph() instantiates OrchestrationGraph, registers supervisor, ingestion, graph_builder, impact_analyzer, report_generator, and end nodes.",
+    true
+  ); }},
+  { cat: "Scratch Engine", gen() { return t(
+    "What ARIAState method appends to history and sets current_node?",
+    "record_step(node_name)",
+    "record_step(node_name) appends the node name to the history list and updates current_node for auditing.",
+    true
+  ); }},
+  { cat: "Scratch Engine", gen() { return t(
+    "route_after_report_generator always returns what value?",
+    "end",
+    "After report_generator, the route always returns 'end' — reporting is the terminal step in both the ingestion and query paths.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // LANGGRAPH REFERENCE
+  // ═══════════════════════════════════════════
+  { cat: "LangGraph Reference", gen() { return t(
+    "What is LangGraph's central abstraction for building stateful agent workflows?",
+    "StateGraph",
+    "StateGraph is a directed graph of nodes (async callables) and edges (conditional or fixed transitions). compile() produces an executable runnable.",
+    true
+  ); }},
+  { cat: "LangGraph Reference", gen() { return t(
+    "What method finalizes a LangGraph StateGraph into an executable application?",
+    "compile()",
+    "graph.compile() produces a compiled runnable that LangGraph can invoke, checkpoint, stream, or pause for human review.",
+    true
+  ); }},
+  { cat: "LangGraph Reference", gen() { return t(
+    "LangGraph uses add_conditional_edges with a router function and what mapping object?",
+    "path_map",
+    "add_conditional_edges(source, router, path_map): router returns a string label; path_map maps labels to next node names or END.",
+    true
+  ); }},
+  { cat: "LangGraph Reference", gen() { return t(
+    "What TypedDict adapter does ARIA use to bridge ARIAState (Pydantic) to LangGraph's dict-based state?",
+    "ARIAStateDict",
+    "ARIAStateDict is a TypedDict mirroring ARIAState fields. Conversion helpers: pydantic_to_dict() and dict_to_pydantic().",
+    true
+  ); }},
+  { cat: "LangGraph Reference", gen() { return t(
+    "In LangGraph, what is the special terminal marker that replaces ARIA's 'end' node?",
+    "END",
+    "LangGraph uses END as the terminal marker in path_map values, equivalent to routing to 'end' in scratch.",
+    true
+  ); }},
+  { cat: "LangGraph Reference", gen() { return t(
+    "What LangGraph feature applies per-channel functions to merge state updates from multiple nodes?",
+    "Reducers",
+    "Reducers merge updates per state channel — e.g., appending to a messages list. Scratch uses mutable state instead.",
+    true
+  ); }},
+  { cat: "LangGraph Reference", gen() { return t(
+    "ARIA's scratch engine uses a single mutable ARIAState. LangGraph nodes return what?",
+    "Partial state updates (dicts)",
+    "LangGraph nodes return partial update dicts that the framework merges into state. Scratch mutates state in-place.",
+    true
+  ); }},
+  { cat: "LangGraph Reference", gen() { return t(
+    "What key operational feature does LangGraph provide that ARIA's scratch engine lacks?",
+    "Checkpointing and replay",
+    "LangGraph supports checkpointing, replay, streaming, and human-in-the-loop interrupts — the scratch engine has none of these built in.",
+    true
+  ); }},
+  { cat: "LangGraph Reference", gen() { return t(
+    "Both scratch and LangGraph implementations share the exact same what for routing decisions?",
+    "Boolean predicates on ARIAState",
+    "Both use the same predicates: is_ingestion_request, is_impact_query, is_free_query, has_error — the routing logic is identical.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // EVALUATION
+  // ═══════════════════════════════════════════
+  { cat: "Evaluation", gen() { return t(
+    "What pytest marker separates evaluation tests from fast unit tests in ARIA?",
+    "@pytest.mark.eval",
+    "Evaluation tests are marked with @pytest.mark.eval so CI can run them on a schedule or behind a flag.",
+    true
+  ); }},
+  { cat: "Evaluation", gen() { return t(
+    "What evaluation approach checks whether the sequence of agent steps matches expectations?",
+    "Trajectory evaluation",
+    "Trajectory evaluation checks the sequence of nodes/steps — correct routing, correct tool usage, efficient path, and completion.",
+    true
+  ); }},
+  { cat: "Evaluation", gen() { return t(
+    "In ARIA's eval module, what data structure captures node_name, tool_calls, duration, and errors per step?",
+    "TraceStep",
+    "TraceStep records per-step telemetry. AgentTrace aggregates TraceSteps. evaluate_trace returns a TraceEvaluation with boolean checks.",
+    true
+  ); }},
+  { cat: "Evaluation", gen() { return t(
+    "What is the expected flow for an ingestion trajectory in ARIA's eval module?",
+    "supervisor → ingestion → entity_extractor → graph_builder → end",
+    "EXPECTED_INGESTION_FLOW defines the expected step sequence. Note: the default scratch graph may omit entity_extractor as a separate node.",
+    true
+  ); }},
+  { cat: "Evaluation", gen() { return t(
+    "What metric does score_retrieval compute as the fraction of expected components matched?",
+    "completeness",
+    "completeness = matched components / total expected components. Matching uses a lexical keyword table (simplified; production would use LLM-as-judge).",
+    true
+  ); }},
+  { cat: "Evaluation", gen() { return t(
+    "How many eval questions are defined in graphrag_vs_vector_rag.py (q1 through q5)?",
+    5,
+    "Five questions: q1 (AI Act gaps), q2 (deadlines/teams), q3 (cross-regulation), q4 (single-hop GDPR baseline), q5 (systems/data types)."
+  ); }},
+  { cat: "Evaluation", gen() { return t(
+    "What boolean field on EvalQuestion indicates it needs graph-style traversal?",
+    "requires_multi_hop",
+    "requires_multi_hop flags questions designed to favor GraphRAG over pure vector RAG — structural compliance queries.",
+    true
+  ); }},
+  { cat: "Evaluation", gen() { return t(
+    "What strategy replays recorded tool responses so CI tests don't depend on live LLM calls?",
+    "Record-and-replay",
+    "Record-and-replay replays recorded graph rows and chunk text, making CI deterministic without live LLM, Neo4j, or Chroma.",
+    true
+  ); }},
+  { cat: "Evaluation", gen() { return t(
+    "What are the three CI evaluation tiers ARIA suggests (by speed)?",
+    "Fast, Medium, Slow",
+    "Fast: schema/trace/scoring unit tests (every commit). Medium: mocked tools/fixed embeddings (PR). Slow: Neo4j+Chroma+Ollama full GraphRAG (nightly).",
+    true
+  ); }},
+  { cat: "Evaluation", gen() { return t(
+    "What evaluation approach uses a separate LLM to score relevance with a versioned rubric?",
+    "LLM-as-judge",
+    "LLM-as-judge uses a constrained prompt to score relevance. It scales rubric coverage but introduces second-order non-determinism.",
+    true
+  ); }},
+
+  // ═══════════════════════════════════════════
+  // TRADEOFFS
+  // ═══════════════════════════════════════════
+  { cat: "Tradeoffs", gen() { return t(
+    "When do graph expansion costs outweigh benefits in ARIA?",
+    "For shallow questions with clear lexical anchors",
+    "Shallow questions answerable from 1-2 chunks don't need graph traversal. Large fan-out and cold graphs also hurt graph performance.",
+    true
+  ); }},
+  { cat: "Tradeoffs", gen() { return t(
+    "What local LLM runtime does ARIA reference for on-prem inference?",
+    "Ollama",
+    "Ollama keeps data on-prem with predictable cost but sacrifices frontier reasoning, multilingual quality, and tool-calling reliability.",
+    true
+  ); }},
+  { cat: "Tradeoffs", gen() { return t(
+    "What are the three main overhead sources of A2A protocol for local deployment?",
+    "Serialization, TCP stack, operational duplication",
+    "A2A overhead on a single machine: JSON serialization, TCP/connection management even for localhost, and separate processes per agent.",
+    true
+  ); }},
+  { cat: "Tradeoffs", gen() { return t(
+    "What risk arises when MCP tool schemas change but agents are built for an older version?",
+    "Client/server skew",
+    "Client/server skew: agent code expects one schema but server has another. Contract tests and explicit versioning help mitigate this.",
+    true
+  ); }},
+  { cat: "Tradeoffs", gen() { return t(
+    "When Pydantic contract models change, what Neo4j problem can occur with existing data?",
+    "Legacy property keys mismatch new code expectations",
+    "Production graphs retain old property keys while code expects new ones — causing empty query results or validation exceptions.",
+    true
+  ); }},
+  { cat: "Tradeoffs", gen() { return t(
+    "What kind of schema changes does ARIA recommend to minimize migration friction?",
+    "Additive changes with defaults",
+    "Prefer additive schema changes with default values, explicit Neo4j migrations, and versioned golden fixtures for eval.",
+    true
+  ); }},
+  { cat: "Tradeoffs", gen() { return t(
+    "ARIA's VALID_EDGES is a closed set. What is the tradeoff of this strict approach?",
+    "Catches errors early but requires code updates for new edge types",
+    "Closed sets catch extraction mistakes early, but every new relationship type (e.g., SUPERSEDES) requires a code change before extractors can emit it.",
+    true
+  ); }},
+  { cat: "Tradeoffs", gen() { return t(
+    "What remains the ground truth for high-stakes compliance copy, even with automated evaluation?",
+    "Human evaluation",
+    "Human evaluation remains ground truth for compliance text. Automate structure checking, sample substance manually.",
+    true
+  ); }},
+  { cat: "Tradeoffs", gen() { return t(
+    "What four things would a production rollout add that ARIA's portfolio version intentionally omits?",
+    "Auth, scaling, robust eval, disaster recovery",
+    "Production adds: authentication/authorization/audit, SLAs/horizontal scaling/queueing, robust eval (LLM judges, human loops), and disaster recovery for Neo4j and Chroma.",
+    true
+  ); }},
+  { cat: "Tradeoffs", gen() { return t(
+    "What strategy keeps ARIA's evaluation stable despite non-deterministic LLM outputs?",
+    "Test structure before prose",
+    "Test structure (traces, schemas, tool arguments) before natural language content. Also: record-replay, aggregate over samples, and use temperature/seed control.",
+    true
+  ); }},
+];
+
+
+// ─────────────────────────────────────────────
+// GAME ENGINE
+// ─────────────────────────────────────────────
+let deck = [];
+let cardIndex = 0;
+let currentCard = null;
+let score = 0;
+let correct = 0;
+let total = 0;
+let streakVal = 0;
+let answered = false;
+const seenPerCat = {};
+
+CATEGORIES.forEach(c => { seenPerCat[c] = { total: 0, done: 0 }; });
+QUESTION_BANK.forEach(q => { seenPerCat[q.cat].total++; });
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function buildDeck() {
+  deck = shuffle(QUESTION_BANK.map((entry, i) => {
+    const card = entry.gen();
+    card.cat = entry.cat;
+    card.idx = i;
+    return card;
+  }));
+  cardIndex = 0;
+  CATEGORIES.forEach(c => { seenPerCat[c].done = 0; });
+}
+
+function generateDistractors(ans, isText) {
+  const opts = new Set();
+  opts.add(String(ans));
+
+  if (!isText && typeof ans === "number") {
+    const spread = Math.max(1, Math.ceil(Math.abs(ans) * 0.4)) || 1;
+    let tries = 0;
+    while (opts.size < 4 && tries < 50) {
+      const delta = Math.floor(Math.random() * spread * 2) - spread;
+      const v = ans + (delta === 0 ? (Math.random() < 0.5 ? 1 : -1) : delta);
+      if (v !== ans && v >= 0) opts.add(String(v));
+      tries++;
+    }
+    while (opts.size < 4) opts.add(String(ans + opts.size));
+  } else {
+    const str = String(ans);
+    const pool = QUESTION_BANK
+      .filter(e => e.cat === currentCard.cat)
+      .map(e => { const c = e.gen(); return String(c.ans); })
+      .filter(a => a !== str);
+    const unique = [...new Set(pool)];
+    shuffle(unique);
+    for (const u of unique) { if (opts.size >= 4) break; opts.add(u); }
+
+    if (opts.size < 4) {
+      const allAns = QUESTION_BANK.map(e => String(e.gen().ans)).filter(a => a !== str);
+      const uniq2 = [...new Set(allAns)];
+      shuffle(uniq2);
+      for (const u of uniq2) { if (opts.size >= 4) break; opts.add(u); }
+    }
+    while (opts.size < 4) opts.add(str + " (variant " + opts.size + ")");
+  }
+  return shuffle([...opts]);
+}
+
+// ─────────────────────────────────────────────
+// RENDERING
+// ─────────────────────────────────────────────
+const $catBar = document.getElementById("categoryBar");
+const $score = document.getElementById("score");
+const $correct = document.getElementById("correctCount");
+const $streak = document.getElementById("streak");
+const $qCard = document.getElementById("questionCard");
+const $qTopic = document.getElementById("questionTopic");
+const $qText = document.getElementById("questionText");
+const $qCounter = document.getElementById("questionCounter");
+const $opts = document.getElementById("optionsGrid");
+const $fb = document.getElementById("feedbackBar");
+const $next = document.getElementById("nextBtn");
+const $end = document.getElementById("endScreen");
+const $endTitle = document.getElementById("endTitle");
+const $endSummary = document.getElementById("endSummary");
+
+function renderCategoryBar() {
+  $catBar.innerHTML = "";
+  CATEGORIES.forEach(c => {
+    const pill = document.createElement("span");
+    pill.className = "category-pill";
+    pill.textContent = c;
+    const info = seenPerCat[c];
+    if (info.done === info.total && info.total > 0) pill.classList.add("completed");
+    else if (currentCard && currentCard.cat === c) pill.classList.add("active");
+    $catBar.appendChild(pill);
+  });
+}
+
+function renderMetrics() {
+  $score.textContent = score;
+  $correct.textContent = correct + " / " + total;
+  $streak.textContent = streakVal;
+}
+
+function renderQuestion() {
+  $qTopic.textContent = currentCard.cat;
+  $qText.textContent = currentCard.q;
+  $qCounter.textContent = (cardIndex + 1) + " / " + deck.length;
+
+  const options = generateDistractors(currentCard.ans, currentCard.isText);
+  $opts.innerHTML = "";
+  options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.className = "option-btn";
+    btn.textContent = opt;
+    btn.addEventListener("click", () => handleAnswer(btn, opt));
+    $opts.appendChild(btn);
+  });
+
+  $fb.className = "feedback-bar";
+  $fb.textContent = "";
+  $next.classList.remove("show");
+  answered = false;
+}
+
+function handleAnswer(btn, chosen) {
+  if (answered) return;
+  answered = true;
+  total++;
+
+  const isCorrect = String(chosen) === String(currentCard.ans);
+  const btns = $opts.querySelectorAll(".option-btn");
+  btns.forEach(b => {
+    b.disabled = true;
+    if (String(b.textContent) === String(currentCard.ans)) b.classList.add("correct");
+  });
+
+  if (isCorrect) {
+    score += 10 + streakVal * 2;
+    correct++;
+    streakVal++;
+    $fb.className = "feedback-bar show correct-fb";
+    $fb.textContent = "Correct!";
+  } else {
+    streakVal = 0;
+    btn.classList.add("wrong");
+    $fb.className = "feedback-bar show wrong-fb";
+    $fb.textContent = currentCard.hint || "The correct answer is: " + currentCard.ans;
+  }
+
+  seenPerCat[currentCard.cat].done++;
+  renderMetrics();
+  renderCategoryBar();
+  $next.classList.add("show");
+}
+
+function nextCard() {
+  cardIndex++;
+  if (cardIndex >= deck.length) {
+    showEnd();
+    return;
+  }
+  currentCard = deck[cardIndex];
+  renderCategoryBar();
+  renderQuestion();
+}
+
+function showEnd() {
+  $qCard.style.display = "none";
+  $fb.style.display = "none";
+  $next.style.display = "none";
+  $end.classList.add("show");
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  $endTitle.textContent = pct >= 80 ? "Excellent work!" : pct >= 50 ? "Good effort!" : "Keep studying!";
+  $endSummary.textContent = "You scored " + score + " points — " + correct + " of " + total + " correct (" + pct + "%). Best streak: " + streakVal + ".";
+}
+
+function restart() {
+  score = 0; correct = 0; total = 0; streakVal = 0;
+  $end.classList.remove("show");
+  $qCard.style.display = "";
+  $fb.style.display = "";
+  $next.style.display = "";
+  buildDeck();
+  currentCard = deck[0];
+  renderMetrics();
+  renderCategoryBar();
+  renderQuestion();
+}
+
+$next.addEventListener("click", nextCard);
+document.getElementById("restartBtn").addEventListener("click", restart);
+
+// Boot
+buildDeck();
+currentCard = deck[0];
+renderMetrics();
+renderCategoryBar();
+renderQuestion();
+</script>
+</body>
+</html>

@@ -55,7 +55,7 @@ Audit focus: HTTP telemetry API (`/metrics`, `/telemetry`), security exposure, `
 | **Disk full / SQLite I/O error** | Middleware/agent store writes fail silently; HTTP still 200 | Monitoring on disk; structured log on write failure |
 | **High concurrency writers** | SQLite **busy** (5s timeout), latency spikes | Reduce write volume, single writer process, or different store |
 | **Multiple replicas, local DB path** | Each instance **different** SQLite file → **fragmented** JSON summary | Shared volume (with SQLite caveats) or external aggregator |
-| **Wrong `ARIA_TELEMETRY_DB`** | Data written to unexpected path / cwd | Document default resolves under repo root (`telemetry_store._resolve_db_path`) |
+| **Wrong `ARIA_TELEMETRY_DB`** | Typos / bad absolute path; or confusion — relative values are **repo-root-relative**, not cwd | Document **`telemetry_store._resolve_db_path`**: default and relative paths resolve under repo root (not cwd) |
 | **LLM called outside HTTP request** (no `request_id`) | `request_id` stored as `""` | Correlation gap for batch jobs; tests expect empty id in some cases |
 
 ---
