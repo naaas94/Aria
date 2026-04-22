@@ -10,7 +10,7 @@ Reviewers and hiring managers distinguish **demonstration code** from **producti
 
 ## How it is implemented in this repo (context for each concern)
 
-ARIA combines **Neo4j** for structured regulatory and systems knowledge, **ChromaDB** for vector retrieval, **GraphRAG**-style patterns that join graph traversal with text chunks, **scratch orchestration** with an optional **LangGraph** reference, **MCP**-shaped tool servers (**`aria/protocols/mcp/`**), and **A2A** client/server pieces (**`aria/protocols/a2a/`**, API routes under **`api/routers/`**). Integration tests and README copy reference **Ollama** for local LLMs. **Pydantic** models in **`aria/contracts/`** define cross-layer payloads. **Evaluation** scaffolding lives in **`tests/eval/`**. The following sections map **concerns** to this layout.
+ARIA combines **Neo4j** for structured regulatory and systems knowledge, **ChromaDB** for vector retrieval, **GraphRAG**-style patterns that join graph traversal with text chunks, **scratch orchestration** with an optional **LangGraph** reference, **MCP**-shaped tool servers (**`aria/protocols/mcp/`**), and **A2A** client/server pieces (**`aria/protocols/a2a/`**, API routes under **`api/routers/`**). The **CLI** (**`aria/cli/`**) and **`aria.services`** share query/impact logic with FastAPI. **`aria.health`** powers **`GET /ready`**, **`aria status`**, and stricter **`aria ingest`** preflight (all three of Neo4j, Chroma, LLM). Integration tests and README copy reference **Ollama** for local LLMs. **Pydantic** models in **`aria/contracts/`** define cross-layer payloads. **Evaluation** scaffolding lives in **`tests/eval/`** (including **golden_set**, API contract, and security suites). The following sections map **concerns** to this layout.
 
 ### Graph versus vector latency
 
@@ -28,6 +28,18 @@ ARIA combines **Neo4j** for structured regulatory and systems knowledge, **Chrom
 - **Auditable paths**: graph results tie to **explicit relationships** suitable for **impact reports** (**`impact_analyzer_node`** in **`aria/orchestration/scratch/nodes.py`**).
 
 The eval module **`graphrag_vs_vector_rag.py`** encodes **multi-hop** versus **single-hop** question types to stress this split; **`requires_multi_hop`** flags questions intended to favor **GraphRAG**.
+
+### Health, readiness, and ingest preflight
+
+- **`GET /health`** — process liveness only; does not prove Neo4j/Chroma/LLM.
+- **`GET /ready`** — JSON reports **neo4j**, **chroma**, **llm**; HTTP **200 vs 503** is gated by **Neo4j + Chroma** so the data plane can be “up” without a working LLM provider. The **llm** field may use a **cached** probe to avoid hammering the provider on every request.
+- **`aria ingest`** — preflight requires **all three** (Neo4j, Chroma, LLM) via **`full_ingest_dependencies_satisfied`**; stricter than **`GET /ready`** or **`aria status`** exit rules.
+
+This split avoids confusing “HTTP green” with “safe to run a full LLM ingest.”
+
+### Telemetry storage and retention
+
+Request/agent/LLM telemetry can persist to **SQLite** (**`aria/observability/telemetry_store.py`**) with optional **retention pruning** in app lifespan. **Multi-replica** deployments need a strategy: per-process DBs fragment analytics; **Prometheus `/metrics`** or external stores are better for HA-style observability. See **`CHANGELOG.md`** and **`README.md`** for env vars.
 
 ### A2A overhead for local deployment
 
@@ -121,6 +133,8 @@ Even with **fixed** prompts, **temperature**, and **seeds** (where supported), o
 | MCP | Standard tool surface | Version coupling |
 | Local LLM | Privacy, cost cap | Model capability ceiling |
 | Strict Pydantic | Runtime safety | Migration friction on change |
+| Cached LLM readiness | Fewer probe calls on `/ready` | Stale **`llm`** field until TTL expires |
+| SQLite telemetry | Simple local analytics | Per-replica fragmentation, file locking caveats |
 
 ## Portfolio versus production-grade implementation
 
@@ -143,8 +157,9 @@ The codebase is intentionally **readable** and **modular** rather than **exhaust
 
 ## Further reading
 
-- Orchestration and traces: `aria/orchestration/scratch/graph.py`, `docs/09_langgraph_reference.md`
-- Evaluation: `tests/eval/`, `docs/10_evaluation_agentic_systems.md`
+- Orchestration and traces: `aria/orchestration/scratch/graph.py`, [09_langgraph_reference.md](09_langgraph_reference.md)
+- Evaluation: `tests/eval/`, [10_evaluation_agentic_systems.md](10_evaluation_agentic_systems.md)
+- Operational changes: `CHANGELOG.md` (repo root)
 - A2A: `aria/protocols/a2a/client.py`, `aria/protocols/a2a/server.py`, `api/routers/agents.py`
 - MCP: `aria/protocols/mcp/server.py`, `aria/observability/metrics.py`
 - Graph and API: `aria/graph/client.py`, `api/routers/query.py`, `api/routers/impact.py`

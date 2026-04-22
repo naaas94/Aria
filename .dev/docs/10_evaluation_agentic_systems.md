@@ -25,14 +25,15 @@ The evaluation-oriented code lives under **`tests/eval/`**, marked with **`@pyte
 
 In **`agent_trace_analysis.py`**, **`AgentTrace`** aggregates **`TraceStep`** records (node name, input/output state snapshots, tool call names, duration, errors). **`evaluate_trace`** returns a **`TraceEvaluation`** with booleans for **correct routing**, **correct tool usage**, **efficient path**, and **completed successfully**, plus a list of **issues**.
 
-The module defines **expected flows** such as:
+The module defines **expected flows** aligned with **`aria/orchestration/scratch/paths.py`** (same sequences as **`build_default_graph`** / **`EDGE_MAP`**), for example:
 
 - **`EXPECTED_INGESTION_FLOW`**: `supervisor` → `ingestion` → `entity_extractor` → `graph_builder` → `end`
 - **`EXPECTED_QUERY_FLOW`**: `supervisor` → `impact_analyzer` → `report_generator` → `end`
+- **`EXPECTED_FREE_QUERY_FLOW`**: `supervisor` → `free_query` → `end`
 
 Tests assert that a **synthetic** trace matching the ingestion flow passes, that **errors** mark completion as failed, that **excessive repetition** of a node flags **inefficient_path**, and that **wrong ordering** (e.g. jumping to **`report_generator`** after **`supervisor`**) fails **correct_routing**.
 
-**Note for integrators**: the default scratch graph in **`aria/orchestration/scratch/graph.py`** wires **`ingestion`** → **`graph_builder`** without a separate **`entity_extractor`** node in **`build_default_graph`**. The eval module’s **expected ingestion flow** illustrates the **evaluation pattern**; aligning production traces with **`EXPECTED_*`** constants—or updating those constants—is part of keeping evals honest.
+When you change **`EDGE_MAP`** or default node wiring, update **`paths.py`** and these **`EXPECTED_*`** aliases together so trajectory evals stay honest.
 
 ### Tool call accuracy
 
@@ -72,6 +73,14 @@ The orchestration **nodes** already enforce many contracts (e.g. **`ExtractedEnt
 - **Retrieval completeness thresholds** over **`EVAL_QUESTIONS`** (once wired to live or recorded retrievers)
 
 The **`@pytest.mark.eval`** marker separates slower or environment-dependent suites from fast unit tests. CI can run eval tests on a schedule or behind a flag to manage **flake** from **non-deterministic** models.
+
+### API contracts, security, and golden suite
+
+Beyond retrieval and trace modules, **`tests/eval/`** includes:
+
+- **`test_api_contracts.py`** — HTTP response shapes, error codes, named Cypher return aliases, readiness JSON, and related REST contracts.
+- **`test_security_audit.py`** — API key behavior, observability route gating, A2A shared secret header, OpenAPI path set vs `expected_api_paths.py`, and similar checks.
+- **`golden_set/`** — YAML cases (trace, retrieval, contract, security, edge) run via **`tests/eval/golden_set/test_goldens.py`**; **`aria eval`** exercises this harness.
 
 ### Non-deterministic LLM outputs and stable evaluation
 
@@ -130,7 +139,9 @@ Document which tier **`pytest -m eval`** maps to in your pipeline so contributor
 
 ## Further reading
 
-- ARIA eval suite: `tests/eval/graphrag_vs_vector_rag.py`, `tests/eval/agent_trace_analysis.py`.
+- ARIA eval suite: `tests/eval/graphrag_vs_vector_rag.py`, `tests/eval/agent_trace_analysis.py`, `tests/eval/golden_set/`, `tests/eval/test_api_contracts.py`, `tests/eval/test_security_audit.py`.
+- Canonical orchestration paths for trace expectations: `aria/orchestration/scratch/paths.py`.
+- Release-level changes: repo root `CHANGELOG.md`.
 - Orchestration traces: `aria/orchestration/scratch/graph.py` (`ExecutionResult`, `StepTrace`, `to_trace_dict`).
 - Contracts for validation targets: `aria/contracts/`.
 - **Agent evaluation** surveys: search for “LLM agent evaluation benchmark” and “tool use evaluation” for current public leaderboards and methodologies.

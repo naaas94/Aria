@@ -78,18 +78,21 @@ Under `aria/orchestration/scratch/`:
 
 - **`state.py`**: `ARIAState` — typed shared state (regulation ID, document text, extracted entities, graph write status, impact report, final report, error, `current_node`, `history`).
 
-- **`nodes.py`**: async node functions (`supervisor`, `ingestion`, `graph_builder`, `impact_analyzer`, `report_generator`, `end`) each taking `(ARIAState, ToolPorts)` and returning updated state. Nodes call tools via **`ToolPorts`** (MCP-shaped), keeping side effects behind a protocol.
+- **`nodes.py`**: async node functions (`supervisor`, `ingestion`, `entity_extractor`, `free_query`, `graph_builder`, `impact_analyzer`, `report_generator`, `end`) each taking `(ARIAState, ToolPorts)` and returning updated state. Nodes call tools via **`ToolPorts`** (MCP-shaped), keeping side effects behind a protocol.
 
 - **`edges.py`**: pure functions `route_after_*` implementing the **routing table** after each node.
 
+- **`paths.py`**: canonical node sequences (**`CANONICAL_SCRATCH_*`**) kept in sync with **`build_default_graph`** and **`EDGE_MAP`** for evals and docs.
+
 - **`graph.py`**: **`OrchestrationGraph`** runs a **loop**: execute current node, compute next via edge function, advance until `end`, error, or `MAX_STEPS`.
 
-`build_default_graph()` wires the standard pipeline: supervisor → ingestion or impact path → graph builder when applicable → report generation → end.
+`build_default_graph()` registers all nodes; routing is entirely via **`EDGE_MAP`**.
 
 **Example paths (high level)**
 
-- **Ingestion**: `supervisor` → `ingestion` → `graph_builder` → optionally `impact_analyzer` if `regulation_id` is present on state after write, else `end` (per `route_after_graph_builder`).
-- **Impact query**: `supervisor` → `impact_analyzer` → `report_generator` → `end`.
+- **Ingestion**: `supervisor` → `ingestion` (validates document) → `entity_extractor` (calls `tools.extract_entities`) → `graph_builder` → if `regulation_id` → `impact_analyzer` → `report_generator` → `end`; else `end` after graph builder when no regulation id.
+- **Impact-only** (regulation id, no document): `supervisor` → `impact_analyzer` → `report_generator` → `end`.
+- **Free query** (`query` only, no `regulation_id`, no document): `supervisor` → `free_query` (vector search) → `end`.
 - **Error anywhere**: edge functions route to `end`; `OrchestrationGraph.execute` also forces termination when `state.has_error` and the computed next node is not already `end`.
 
 This is **explicit stateful orchestration**: unlike ReAct, the **graph topology** is fixed in code; unlike unconstrained reflection, there is no default self-critique loop (reflection could be added as a node if desired).
@@ -142,6 +145,7 @@ The **supervisor + graph** choice trades flexibility for **predictability**, **t
 - Internal: `aria/orchestration/scratch/state.py` — `ARIAState` schema.
 - Internal: `aria/orchestration/scratch/nodes.py` — node bodies and `ToolPorts`.
 - Internal: `aria/orchestration/scratch/edges.py` — `EDGE_MAP` routing table.
+- Internal: `aria/orchestration/scratch/paths.py` — canonical paths for traces and evals.
 - Internal: `aria/orchestration/scratch/graph.py` — `OrchestrationGraph.execute` and `build_default_graph`.
 - Internal: `aria/orchestration/langgraph_reference/` — reference graph sharing `ARIAState`.
 - Internal: `tests/unit/test_orchestration.py` — unit coverage for orchestration behavior where present.

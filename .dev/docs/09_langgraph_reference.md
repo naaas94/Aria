@@ -45,7 +45,7 @@ The scratch **`OrchestrationGraph`** in `scratch/graph.py` implements the same *
 - Execution stops on `"end"`, on error (with guardrails), or after **`MAX_STEPS`** to prevent infinite loops.
 - **`ExecutionResult`** captures **`StepTrace`** entries (node name, duration, chosen next node, errors) and exposes **`to_trace_dict()`** for observability.
 
-LangGraph’s **`build_langgraph()`** in `langgraph_reference/graph.py` constructs a **`StateGraph(ARIAStateDict)`** with the same **named nodes** and **conditional edges** from `supervisor` through `ingestion` / `graph_builder` / `impact_analyzer` / `report_generator`, terminating at **`END`** after the report step.
+LangGraph’s **`build_langgraph()`** in `langgraph_reference/graph.py` constructs a **`StateGraph(ARIAStateDict)`** with the same **named nodes** and **conditional edges** as scratch: `supervisor` → (`ingestion` | `free_query` | `impact_analyzer` | `END`), ingestion → `entity_extractor` → `graph_builder` → …, mirroring **`EDGE_MAP`** in `scratch/edges.py`.
 
 ### Side-by-side: state as TypedDict adapter
 
@@ -76,8 +76,10 @@ LangGraph **node functions** (`langgraph_reference/nodes.py`) accept **`dict[str
 
 Scratch defines **`EdgeFunction = Callable[[ARIAState], str]`** and **`EDGE_MAP`** in `scratch/edges.py`:
 
-- **`route_after_supervisor`**: errors → `end`; ingestion → `ingestion`; impact or free query → `impact_analyzer`; else → `end`.
-- **`route_after_ingestion`**: errors → `end`; if **`extracted_entities`** → `graph_builder`; else → `end`.
+- **`route_after_supervisor`**: errors → `end`; ingestion → `ingestion`; free query → `free_query`; impact query (`regulation_id` without document) → `impact_analyzer`; else → `end`.
+- **`route_after_ingestion`**: errors → `end`; else → **`entity_extractor`**.
+- **`route_after_entity_extractor`**: errors → `end`; if **`extracted_entities`** → `graph_builder`; else → `end`.
+- **`route_after_free_query`**: → `end`.
 - **`route_after_graph_builder`**: errors → `end`; if **`regulation_id`** → `impact_analyzer`; else → `end`.
 - **`route_after_impact_analyzer`**: errors → `end`; if **`impact_report`** → `report_generator`; else → `end`.
 - **`route_after_report_generator`**: always **`end`**.
@@ -96,11 +98,14 @@ Scratch’s **`execute`** method is the **hand-rolled runtime**: try/except per 
 ### Worked mental model: two paths
 
 **Ingestion path (high level)**  
-`supervisor` (document present) → `ingestion` → if entities extracted → `graph_builder` → if `regulation_id` set → `impact_analyzer` → if report → `report_generator` → `end`.  
+`supervisor` (document present) → `ingestion` → `entity_extractor` → if entities extracted → `graph_builder` → if `regulation_id` set → `impact_analyzer` → if report → `report_generator` → `end`.  
 Both implementations follow this **skeleton**; scratch fills in **tool calls** at each step.
 
-**Query path**  
-`supervisor` → `impact_analyzer` when **`regulation_id`** or **`query`** flags apply (per **`ARIAState`** properties), then **`report_generator`** when an impact report exists.
+**Impact path**  
+`supervisor` → `impact_analyzer` when **`regulation_id`** is set and there is **no** `raw_document` (includes gap-style payloads with both `regulation_id` and `query`), then **`report_generator`** when an impact report exists.
+
+**Free query path**  
+`supervisor` → `free_query` → `end` when **`query`** is set and **`regulation_id`** and **`raw_document`** are absent.
 
 Tracing **`node_path`** from **`ExecutionResult`** in scratch parallels inspecting LangGraph run metadata or custom callbacks if you add them.
 
@@ -111,24 +116,27 @@ LangGraph can apply **reducer** functions per channel so that multiple nodes con
 ### Diagram: equivalent topology (simplified)
 
 ```text
-                    ┌─────────────┐
-                    │ supervisor  │
-                    └──────┬──────┘
-           ┌───────────────┼───────────────┐
-           ▼               ▼               ▼
-    ┌────────────┐   ┌──────────────┐     END
-    │ ingestion  │   │impact_analyzer│
-    └─────┬──────┘   └───────┬──────┘
-          ▼                   ▼
-    ┌────────────┐     ┌──────────────┐
-    │graph_builder│     │report_generator│
-    └─────┬──────┘     └───────┬──────┘
-          └──────────┬─────────┘
-                     ▼
-                    END
+                         ┌─────────────┐
+                         │ supervisor  │
+                         └──────┬──────┘
+        ┌──────────────────────┼──────────────────────┐
+        ▼                      ▼                      ▼
+ ┌────────────┐      ┌─────────────────┐      ┌────────────┐
+ │ ingestion  │      │ impact_analyzer │      │ free_query │
+ └─────┬──────┘      └────────┬────────┘      └─────┬──────┘
+       ▼                      ▼                      ▼
+┌──────────────┐      ┌──────────────┐              END
+│entity_extract│      │report_generat│
+└──────┬───────┘      └──────┬───────┘
+       ▼                     ▼
+┌──────────────┐            END
+│graph_builder │
+└──────┬───────┘
+       ▼
+      END   (or → impact_analyzer → … when regulation_id present)
 ```
 
-Both **`OrchestrationGraph`** and **`StateGraph`** realize this structure; scratch additionally allows an explicit **`end`** node invocation after the loop when registered.
+Both **`OrchestrationGraph`** and **`StateGraph`** realize the same branching; the diagram omits every **`end`** self-loop for space. Scratch additionally invokes an explicit **`end`** node after the loop when registered.
 
 ## Tradeoffs
 

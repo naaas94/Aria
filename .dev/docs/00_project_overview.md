@@ -157,6 +157,27 @@ Document parsing, chunking, and the pipeline that ties parsing to entity extract
 - [`parsers/html_parser.py`](../aria/ingestion/parsers/html_parser.py) — BeautifulSoup HTML extraction
 - [`chunker.py`](../aria/ingestion/chunker.py) — Sentence-boundary chunking with overlap
 - [`pipeline.py`](../aria/ingestion/pipeline.py) — Orchestrates parse → chunk → extract → write with idempotency
+- [`wiring.py`](../aria/ingestion/wiring.py) — `build_full_ingest_wiring`: async callables for full ingest (CLI and tests)
+
+### Application services — `aria/services/`
+
+Shared logic for REST and CLI so behavior does not drift.
+
+- [`compliance_query.py`](../aria/services/compliance_query.py) — `run_compliance_query`, hybrid vs vector-only paths
+- [`impact_report.py`](../aria/services/impact_report.py) — `run_impact_report` / impact summary
+
+### Health and readiness — `aria/health/`
+
+Dependency probes and helpers used by **`GET /ready`**, **`aria status`**, and **`aria ingest`** preflight.
+
+- [`assessment.py`](../aria/health/assessment.py) — `assess_app_connections`, `DependencyReport`, `full_ingest_dependencies_satisfied`, optional `LlmReadyProbeCache` for cached LLM readiness probes
+
+### CLI — `aria/cli/`
+
+Typer-based operator commands (console script **`aria`** after `pip install -e .`).
+
+- [`main.py`](../aria/cli/main.py) — Root app, loads `.env`
+- [`commands/serve.py`](../aria/cli/commands/serve.py), [`init.py`](../aria/cli/commands/init.py), [`status.py`](../aria/cli/commands/status.py), [`ingest.py`](../aria/cli/commands/ingest.py), [`query.py`](../aria/cli/commands/query.py), [`impact.py`](../aria/cli/commands/impact.py), [`telemetry_cmd.py`](../aria/cli/commands/telemetry_cmd.py), [`eval.py`](../aria/cli/commands/eval.py)
 
 ### Retrieval — `aria/retrieval/`
 
@@ -184,9 +205,10 @@ The agent layer: a base class and six specialized agents.
 Two implementations of the same execution graph. The scratch version is the pedagogical core; LangGraph is the framework mirror.
 
 - [`scratch/state.py`](../aria/orchestration/scratch/state.py) — ARIAState (the canonical typed state)
+- [`scratch/paths.py`](../aria/orchestration/scratch/paths.py) — Canonical node sequences (`CANONICAL_SCRATCH_*`) aligned with `EDGE_MAP` and evals
 - [`scratch/nodes.py`](../aria/orchestration/scratch/nodes.py) — Node functions + ToolPorts protocol
 - [`scratch/edges.py`](../aria/orchestration/scratch/edges.py) — Conditional routing table
-- [`scratch/graph.py`](../aria/orchestration/scratch/graph.py) — Execution engine with tracing
+- [`scratch/graph.py`](../aria/orchestration/scratch/graph.py) — Execution engine with tracing and scratch orchestration telemetry
 - [`langgraph_reference/`](../aria/orchestration/langgraph_reference/) — Same topology via LangGraph StateGraph
 
 ### Protocols — `aria/protocols/`
@@ -202,23 +224,33 @@ MCP for tool access, A2A for agent delegation. These are separate concerns: MCP 
 
 ### API — `api/`
 
-FastAPI REST interface exposing ingestion, queries, impact reports, and agent discovery.
+FastAPI REST interface. With **`ARIA_PLACEHOLDER_API=true`** (default), query and impact routes can return synthetic data and set **`X-ARIA-Mode: placeholder`**; set **`ARIA_PLACEHOLDER_API=false`** for live backends. When an API key is configured, most routes require **`X-API-Key`** or **`Authorization: Bearer`**; **`GET /health`** and **`GET /ready`** stay unauthenticated. **`GET /metrics`** and **`GET /telemetry`** follow the same key rules unless **`ARIA_OBSERVABILITY_PUBLIC=true`**.
 
-- [`main.py`](../api/main.py) — App setup with health check
-- [`routers/ingest.py`](../api/routers/ingest.py) — POST /ingest/text, POST /ingest/file
-- [`routers/query.py`](../api/routers/query.py) — POST /query (compliance questions)
-- [`routers/impact.py`](../api/routers/impact.py) — GET /impact/{regulation_id}
+- [`main.py`](../api/main.py) — App, lifespan (connections, telemetry store, optional retention prune), CORS, exception handlers (including **`request_id`** on 500s)
+- [`readiness.py`](../api/readiness.py) — **`GET /ready`**: Neo4j + Chroma gate HTTP **200 vs 503**; JSON includes **`llm`** (may use cached probe per app state)
+- [`routers/ingest.py`](../api/routers/ingest.py) — POST /ingest/text, POST /ingest/file (chunk-only; not the full `ingest_document` pipeline)
+- [`routers/query.py`](../api/routers/query.py) — POST /query → `aria.services.compliance_query`
+- [`routers/impact.py`](../api/routers/impact.py) — Impact routes → `aria.services.impact_report`
 - [`routers/agents.py`](../api/routers/agents.py) — GET /agents (A2A registry view)
+- [`routers/telemetry.py`](../api/routers/telemetry.py) — GET /telemetry, GET /metrics (Prometheus)
 
 ### Tests — `tests/`
 
-Unit tests run without external services. Integration tests use the FastAPI test client. Eval tests benchmark retrieval quality and agent behavior.
+Unit tests run without external services. Integration tests use the FastAPI test client. Eval tests benchmark retrieval quality, traces, API contracts, and security-sensitive behavior.
 
 - [`unit/test_graph_queries.py`](../tests/unit/test_graph_queries.py) — Query library, schema, contracts
 - [`unit/test_orchestration.py`](../tests/unit/test_orchestration.py) — Edge routing, state transitions, full execution
 - [`unit/test_hybrid_retrieval.py`](../tests/unit/test_hybrid_retrieval.py) — Reranker scoring
 - [`eval/graphrag_vs_vector_rag.py`](../tests/eval/graphrag_vs_vector_rag.py) — Retrieval quality comparison
-- [`eval/agent_trace_analysis.py`](../tests/eval/agent_trace_analysis.py) — Agent decision trace evaluation
+- [`eval/agent_trace_analysis.py`](../tests/eval/agent_trace_analysis.py) — Trajectory evaluation helpers
+- [`eval/test_api_contracts.py`](../tests/eval/test_api_contracts.py), [`eval/test_security_audit.py`](../tests/eval/test_security_audit.py) — HTTP contracts and security regressions
+- [`eval/golden_set/`](../tests/eval/golden_set/) — YAML-driven golden suite (`aria eval` runs a subset)
+
+---
+
+## Changelog
+
+Notable implementation changes are recorded in the repo root [`CHANGELOG.md`](../CHANGELOG.md). Use it together with this doc set to spot stale sections after refactors.
 
 ---
 
@@ -227,6 +259,8 @@ Unit tests run without external services. Integration tests use the FastAPI test
 These are the architectural choices that shape the project, with pointers to where each is explained in depth:
 
 **Contracts first.** Every data shape is a versioned Pydantic model in `aria/contracts/`. Agents, MCP tools, A2A envelopes, and the graph builder all import from the same source. This prevents schema drift across boundaries. See [02_property_graph_schema.md](02_property_graph_schema.md).
+
+**Shared services for HTTP and CLI.** `aria/services/` implements compliance query and impact report flows once; FastAPI routers and `aria query` / `aria impact` call the same functions so behavior does not diverge.
 
 **Named queries, not arbitrary Cypher.** The MCP `graph_query` tool does not accept raw Cypher from the LLM. It resolves named, parameterized queries from `aria/graph/queries.py`. This limits the blast radius of a bad LLM output. See [05_mcp_protocol.md](05_mcp_protocol.md).
 
@@ -265,14 +299,30 @@ cp .env.example .env
 # Start Neo4j and ChromaDB
 docker compose up -d neo4j chromadb
 
+# Initialize graph constraints (optional; ingest can also apply schema)
+aria init
+
 # Seed sample data
 python scripts/seed_graph.py
 
+# Check dependencies (exits 1 if Neo4j/Chroma checks fail)
+aria status
+
+# Full-file ingest (requires Neo4j, Chroma, and LLM per preflight)
+# aria ingest path/to/document.pdf
+
 # Run the API
-uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
+aria serve --host 0.0.0.0 --port 8080 --reload
+# or: uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
+
+# CLI query / impact (same services as HTTP when live)
+# aria query "Your question" --no-graph-rag
+# aria impact REGULATION_ID
 
 # Run tests
 pytest
 ```
+
+**Readiness:** **`GET /health`** is liveness only. **`GET /ready`** reports Neo4j, Chroma, and LLM status; HTTP **200 vs 503** depends on Neo4j + Chroma. See **`aria/health/`** and `api/readiness.py` for details.
 
 Then open the docs in order, starting with [01_knowledge_graphs.md](01_knowledge_graphs.md), and follow along with the code.

@@ -168,7 +168,7 @@ These examples illustrate how **Cypher** expresses both **local neighborhoods** 
 - [Cypher Manual](https://neo4j.com/docs/cypher-manual/current/) — syntax, constraints, query tuning.
 - [RDF 1.1 Concepts and Abstract Syntax](https://www.w3.org/TR/rdf11-concepts/) — triple model and RDF graphs.
 - [SPARQL 1.1 Query Language](https://www.w3.org/TR/sparql11-query/) — if comparing graph query paradigms.
-- Edge et al., *From Local to Global: A Graph RAG Approach to Query-Focused Summarization* — research context for graph-augmented retrieval (see also `docs/03_graphrag_vs_vector_rag.md`).
+- Edge et al., *From Local to Global: A Graph RAG Approach to Query-Focused Summarization* — research context for graph-augmented retrieval (see also [03_graphrag_vs_vector_rag.md](03_graphrag_vs_vector_rag.md)).
 
 ---
 

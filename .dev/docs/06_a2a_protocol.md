@@ -105,6 +105,8 @@ This sequence mirrors how larger multi-agent platforms correlate work across ser
 
 Production use of A2A requires **TLS**, **authentication** (for example, mTLS or OAuth2 bearer tokens between agents), and **authorization** tied to capability claims—not shown in the minimal FastAPI sample. The portfolio implementation intentionally foregrounds **structure** (cards, registry, envelopes) over production hardening. Treat `endpoint` URLs and persisted `agent_registry.json` as sensitive configuration in real deployments.
 
+When **`A2A_SHARED_SECRET`** is set, the client sends **`X-A2A-Secret`** on outbound **`delegate_task`** calls; the server validates it with **`verify_a2a_secret_when_configured`**—a minimal shared-secret hook for peer agents (see **`aria/protocols/a2a/client.py`** and **`server.py`**).
+
 ## A2A compared to MCP
 
 | Dimension | MCP (in ARIA) | A2A (in ARIA) |

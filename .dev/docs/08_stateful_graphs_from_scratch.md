@@ -22,7 +22,7 @@ For **ARIA (Automated Regulatory Impact Agent)**, workflows cross **ingestion**,
 
 ## How it is implemented in this repository
 
-The scratch implementation lives in `aria/orchestration/scratch/` across four modules: `state.py`, `nodes.py`, `edges.py`, and `graph.py`.
+The scratch implementation lives in `aria/orchestration/scratch/` across `state.py`, `nodes.py`, `edges.py`, `graph.py`, and **`paths.py`** (canonical node sequences for evals and documentation).
 
 ### State objects (typed shared state)
 
@@ -66,8 +66,9 @@ async def node_name(state: ARIAState, tools: ToolPorts) -> ARIAState
 | Node | Responsibility |
 |------|----------------|
 | `supervisor_node` | Logs intent classification; relies on **edge** functions for actual branching; records step |
-| `ingestion_node` | Calls `tools.extract_entities`, validates `ExtractedEntities` |
-| `entity_extractor_node` | Standalone extraction step if separated from ingestion |
+| `ingestion_node` | Validates that `raw_document` is present before extraction |
+| `entity_extractor_node` | Calls `tools.extract_entities`, validates `ExtractedEntities` |
+| `free_query_node` | Ad-hoc questions via `tools.vector_search` (no `regulation_id`) |
 | `graph_builder_node` | Calls `tools.write_to_graph`, validates `GraphWriteStatus`, sets errors on failure |
 | `impact_analyzer_node` | Calls `tools.query_graph("impact_by_regulation", …)`, builds `ImpactReport` |
 | `report_generator_node` | Builds prompt from `impact_report`, calls `tools.generate_text` |
@@ -81,8 +82,10 @@ Each node sets `state.error` on validation or execution failure and returns stat
 
 **Routing table (logical)**
 
-- **`route_after_supervisor`**: on error → `end`; ingestion → `ingestion`; impact or free query → `impact_analyzer`; else → `end`.
-- **`route_after_ingestion`**: on error → `end`; if `extracted_entities` → `graph_builder`; else → `end`.
+- **`route_after_supervisor`**: on error → `end`; ingestion → `ingestion`; free query → `free_query`; impact query → `impact_analyzer`; else → `end`.
+- **`route_after_ingestion`**: on error → `end`; else → `entity_extractor` (extraction always follows validation).
+- **`route_after_entity_extractor`**: on error → `end`; if `extracted_entities` → `graph_builder`; else → `end`.
+- **`route_after_free_query`**: always `end` (after `free_query_node` runs).
 - **`route_after_graph_builder`**: on error → `end`; if `regulation_id` → `impact_analyzer`; else → `end`.
 - **`route_after_impact_analyzer`**: on error → `end`; if `impact_report` → `report_generator`; else → `end`.
 - **`route_after_report_generator`**: always `end`.
@@ -92,6 +95,8 @@ Each node sets `state.error` on validation or execution failure and returns stat
 ```text
 supervisor → route_after_supervisor
 ingestion → route_after_ingestion
+entity_extractor → route_after_entity_extractor
+free_query → route_after_free_query
 graph_builder → route_after_graph_builder
 impact_analyzer → route_after_impact_analyzer
 report_generator → route_after_report_generator
@@ -124,7 +129,9 @@ There is no edge map entry for `end`; termination is implicit once the engine re
   3. If loop ends with `current == "end"` and `end` is registered, run `end_node` once and append a final trace.
   4. If step cap exceeded, set error on state.
 
-**`build_default_graph()`** instantiates `OrchestrationGraph`, registers all node functions (`supervisor`, `ingestion`, `graph_builder`, `impact_analyzer`, `report_generator`, `end`), and returns a ready-to-run graph.
+**`build_default_graph()`** instantiates `OrchestrationGraph`, registers all node functions (`supervisor`, `ingestion`, `entity_extractor`, `free_query`, `graph_builder`, `impact_analyzer`, `report_generator`, `end`), and returns a ready-to-run graph.
+
+**Canonical sequences** for tests and benchmarks live in **`paths.py`** (e.g. `CANONICAL_SCRATCH_INGESTION_PATH_NO_REG`, `CANONICAL_SCRATCH_FREE_QUERY_PATH`).
 
 ### Walkthrough: impact path
 
@@ -159,6 +166,7 @@ Traces record each hop for dashboards or tests.
 - Internal: `aria/orchestration/scratch/state.py` — full `ARIAState` definition.
 - Internal: `aria/orchestration/scratch/nodes.py` — `ToolPorts` and all node implementations.
 - Internal: `aria/orchestration/scratch/edges.py` — `EDGE_MAP` and routers.
+- Internal: `aria/orchestration/scratch/paths.py` — `CANONICAL_SCRATCH_*` paths.
 - Internal: `aria/orchestration/scratch/graph.py` — `OrchestrationGraph`, `ExecutionResult`, `build_default_graph`.
 - Internal: `aria/orchestration/langgraph_reference/` — parallel implementation for comparison.
 - [LangGraph concepts](https://langchain-ai.github.io/langgraph/) — optional reading for mapping scratch concepts to framework terminology (search current docs for “state graph” and “conditional edges”).
