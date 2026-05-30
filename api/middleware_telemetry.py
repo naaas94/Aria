@@ -11,7 +11,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from aria.observability.metrics import HTTP_REQUEST_COUNTER, TELEMETRY_WRITE_ERRORS_COUNTER
+from aria.observability.metrics import (
+    HTTP_REQUEST_COUNTER,
+    HTTP_REQUEST_DURATION,
+    TELEMETRY_WRITE_ERRORS_COUNTER,
+)
 from aria.observability.telemetry_store import get_telemetry_store
 
 logger = logging.getLogger(__name__)
@@ -55,6 +59,10 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
                         method=request.method,
                         status_code=str(status_code),
                     ).inc()
+                    HTTP_REQUEST_DURATION.labels(
+                        method=request.method,
+                        status_code=str(status_code),
+                    ).observe(latency_ms / 1000.0)
                 except Exception as exc:
                     TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="http_middleware").inc()
                     logger.warning(
