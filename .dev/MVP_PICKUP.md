@@ -246,7 +246,7 @@ pytest tests/eval/test_api_contracts.py tests/eval/test_security_audit.py -q
 
 ---
 
-## Wet run log (fill on first live session)
+## Wet run log (2026-05-30 session below; blank template at bottom)
 
 ```text
 Date: 2026-05-30 (T6 golden-path session)
@@ -313,6 +313,34 @@ Sign-off (MVP golden path OK? Y/N): Y
   All Phase 1 CLI steps exit 0 on live stack; ingest preflight strictly requires LLM;
   /ready returns 200 with llm:false when LLM probe fails. Caveats: impact chain not populated
   from sample ingest alone; operator should set LLM_* explicitly for cloud vs Ollama.
+```
+
+---
+
+## Wet run log template (copy for next session)
+
+Paste a new fenced block below for each live session. The 2026-05-30 golden-path run is recorded in the section above.
+
+```text
+Date:
+Environment: (OS, Python version, Neo4j version, Chroma version)
+LLM_MODEL=gpt-4o-mini
+LLM_BASE_URL=https://api.openai.com/v1
+# For Ollama: LLM_MODEL=ollama/llama3.1:8b  LLM_BASE_URL=http://localhost:11434 — see .env.example
+ARIA_PLACEHOLDER_API=false
+
+aria status →
+aria init →
+aria ingest →
+aria query →
+aria impact →
+aria telemetry →
+
+Failures / surprises:
+
+Fixes applied (commit refs):
+
+Sign-off (MVP golden path OK? Y/N):
 ```
 
 ---

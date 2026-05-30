@@ -1,1 +1,2 @@
-Local model swap for qwen something - 
+# Consolidated into .dev/MVP_PICKUP.md § Wet run log template (Phase 4 T3-amend).
+# For local/Ollama model swap: set LLM_MODEL / LLM_BASE_URL in .env — see .env.example.

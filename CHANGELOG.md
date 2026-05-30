@@ -8,6 +8,8 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 - T2 (README live-mode Quickstart): Added **Live mode** subsection under Quickstart with `ARIA_PLACEHOLDER_API=false`, example `aria query` / `aria impact` commands, and placeholder-mode note; updated **HTTP Surface — Modes** to document `false` as the default and link to Quickstart. Rationale: operators following the README need an explicit live stack path aligned with the T1 G8 flip. **Coverage gap (deferred):** docs-only subtask; no automated check that README env-var spelling stays aligned with `api/config.py` if either changes.
 
+- T3-amend (wet run log template, append-only): Retitled the wet-run section header; appended `## Wet run log template (copy for next session)` with blank scaffold including dedicated `LLM_MODEL=` / `LLM_BASE_URL=` lines (`.env.example` values + Ollama comment); consolidated `.dev/QUICK_TODOS` into a pointer. Rationale: T6 session block is immutable; future operators need an unambiguous LLM field template without overwriting golden-path history. **Coverage gap (deferred):** no pytest asserts MVP_PICKUP template shape (docs-only; kill criteria verified by diff/grep).
+
 ## phase-3-observability — 2026-05-30
 
 - Plan closure (v1.1): Marked `.dev/plans/phase-3-observability/plan.md` **Complete**; populated §8.1–§8.5 auditor handoff; refreshed `context-map.md` §Post-execution. Verification at implementation SHA `a247cfe`: 56 passed (Phase 3 test surface). Rationale: closes orchestrator handoff gate for adversarial audit. **Coverage gap (deferred):** `MVP_PICKUP.md` G5/G6 checkboxes not updated in this closure.
