@@ -182,6 +182,25 @@ def test_cost_by_request_returns_zero_when_cost_is_explicitly_zero(
     assert store.cost_by_request("req-zero") == pytest.approx(0.0)
 
 
+class TestCostByRequest:
+    """T8 rollup cases (T6 added standalone tests; class holds repair-path multi-row sum)."""
+
+    def test_sums_multiple_rows_for_same_request_id(self, store: TelemetryStore) -> None:
+        """Repair path in complete_structured produces two rows per request_id."""
+        ts = _iso()
+        for _ in range(3):
+            store.record_llm_call(
+                request_id="req-C",
+                model="gpt-4o",
+                latency_ms=50.0,
+                status="success",
+                attempt=1,
+                cost_usd=0.0005,
+                ts=ts,
+            )
+        assert store.cost_by_request("req-C") == pytest.approx(0.0015)
+
+
 def test_request_summary_aggregates(store: TelemetryStore) -> None:
     base = _iso(0.5)
     for i, code in enumerate([200, 200, 404, 500]):

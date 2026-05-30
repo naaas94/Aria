@@ -4,6 +4,8 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 ## phase-3-observability — 2026-05-30
 
+- T8 (Phase 3 observability tests): Added unit/mock coverage for HTTP and graph duration histograms, LLM cost counter, pipeline `INGESTION_DURATION`, G6 `TELEMETRY_WRITE_ERRORS_COUNTER` on SQLite write failure (success and error paths), and multi-row `cost_by_request` sum in `tests/unit/test_metrics.py`, `tests/test_llm_telemetry.py`, and `tests/test_telemetry_store.py`. Rationale: closes deferred T2/T5 gaps and validates T1–T6 instrumentation with Prometheus delta checks. **Coverage gap (deferred):** mixed null and non-null `cost_usd` rows for one `request_id` (SQL `SUM` behavior assumed; no explicit test).
+
 - T7 (Ollama cost documentation): Documented expected zero cost for local Ollama in `README.md` (Tech Stack) and `.env.example` (LLM block). Rationale: operators seeing `total_cost_usd: 0` in `GET /telemetry` should not treat it as a bug. **Coverage gap (deferred):** docs-only subtask; no automated check that README and `.env.example` stay in sync if cost semantics change (T8 excludes T7).
 
 - T6 (Per-request cost rollup): Added `TelemetryStore.cost_by_request(request_id)` — sums non-null `cost_usd` for matching `llm_calls` rows, returns `None` when no cost data (not `0.0`). Rationale: store-only helper for operator scripts without changing `/telemetry` JSON. + extended `tests/test_telemetry_store.py` (`test_cost_by_request_*`).

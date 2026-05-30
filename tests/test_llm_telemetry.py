@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+import sqlite3
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import structlog.contextvars
 
 from aria.observability import telemetry_store as ts_mod
-from aria.observability.metrics import LLM_COST_COUNTER
+from aria.observability.metrics import LLM_COST_COUNTER, TELEMETRY_WRITE_ERRORS_COUNTER
 from aria.observability.telemetry_store import TelemetryStore, close_telemetry_store
 
 
@@ -176,3 +178,64 @@ async def test_complete_skips_llm_cost_counter_when_cost_absent(
         await client.complete([{"role": "user", "content": "Hi"}])
 
     assert _counter_value(LLM_COST_COUNTER, model="gpt-4o-mini") == before
+
+
+@pytest.mark.asyncio
+async def test_sqlite_write_failure_on_success_increments_error_counter_and_warns(
+    telemetry_store: TelemetryStore, caplog: pytest.LogCaptureFixture
+) -> None:
+    structlog.contextvars.clear_contextvars()
+
+    before = TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm")._value.get()
+
+    mock_response = _mock_success_response(response_cost=0.001)
+
+    with (
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=mock_response),
+        patch.object(
+            telemetry_store,
+            "record_llm_call",
+            side_effect=sqlite3.OperationalError("disk full"),
+        ),
+        caplog.at_level(logging.WARNING, logger="aria.llm.client"),
+    ):
+        from aria.llm.client import LLMClient
+
+        llm = LLMClient()
+        result = await llm.complete([{"role": "user", "content": "hi"}])
+
+    assert result == "ok"
+    after = TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm")._value.get()
+    assert after == before + 1
+    assert any("telemetry store write failed" in r.message for r in caplog.records)
+    assert any("OperationalError" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_sqlite_write_failure_on_error_path_increments_error_counter(
+    telemetry_store: TelemetryStore,
+) -> None:
+    structlog.contextvars.clear_contextvars()
+
+    before = TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm")._value.get()
+
+    with (
+        patch(
+            "litellm.acompletion",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("LLM down"),
+        ),
+        patch.object(
+            telemetry_store,
+            "record_llm_call",
+            side_effect=sqlite3.OperationalError("locked"),
+        ),
+    ):
+        from aria.llm.client import LLMClient
+
+        llm = LLMClient(max_retries=1)
+        with pytest.raises(RuntimeError, match="LLM down"):
+            await llm.complete([{"role": "user", "content": "hi"}])
+
+    after = TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm")._value.get()
+    assert after == before + 1
