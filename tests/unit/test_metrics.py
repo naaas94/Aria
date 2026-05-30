@@ -503,7 +503,8 @@ async def aiter(items):
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("ARIA_PLACEHOLDER_API", "true")
     from starlette.testclient import TestClient
 
     from api.main import app

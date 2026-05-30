@@ -128,7 +128,7 @@ From [`.dev/architecture/aria/open-questions.md`](architecture/aria/open-questio
 |----------|----------------------------------|
 | HTTP ingest chunk-only vs full pipeline? | **Keep split** for MVP; document; full ingest via `aria ingest` only |
 | LangGraph reference long-term? | **Mark illustrative** in README/module-map; no parity work for MVP |
-| Placeholder default? | **Flip default to false for “release” branch** OR document `ARIA_PLACEHOLDER_API=false` in MVP checklist prominently |
+| Placeholder default? | **Resolved (2026-05-30):** code default flipped to `false` on `dev` (G8 / T1). Use `ARIA_PLACEHOLDER_API=true` for placeholder/demo without backends. |
 | A2A cross-process? | **Out of scope** — in-process registry + tests only |
 | Telemetry retention | **Document** `ARIA_TELEMETRY_RETENTION_DAYS` in MVP runbook; enable for long demos |
 | Scratch + MCP as production runtime? | **Defer** unless doing MVP+ demo; else add one line to README: “production path = services” |
@@ -196,7 +196,7 @@ Also:
 
 ### Phase 4 — Product defaults & operator UX (0.5 day)
 
-- [ ] Decide placeholder default for “MVP branch” (**G8**)
+- [x] Decide placeholder default for “MVP branch” (**G8**) — flipped code default to `false` on `dev` (T1)
 - [ ] README Quickstart: explicit “live mode” block with `ARIA_PLACEHOLDER_API=false`
 - [ ] **QUICK_TODOS:** Local model swap (qwen) — document `LLM_MODEL` / `LLM_BASE_URL` in wet run log
 - [ ] Optional: `aria query --json` smoke in CI via CliRunner (already have help tests)

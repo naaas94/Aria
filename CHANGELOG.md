@@ -2,6 +2,10 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## mvp-phase4-product-defaults-ux — 2026-05-30
+
+- T1 (G8 placeholder default flip, T1-amend): Changed `placeholder_api_enabled()` default from `"true"` to `"false"` in `api/config.py`; aligned OpenAPI description (`api/main.py`), `.env.example`, E2E docstring, MVP_PICKUP G8 checklist, and architecture open-questions Q3; set `ARIA_PLACEHOLDER_API=true` on `tests/unit/test_metrics.py` `client` fixture so ASGI metrics tests stay backend-independent after the flip. Rationale: live mode as baseline makes missing backends explicit instead of silent synthetic responses. See `.dev/decision-logs/T1-g8-placeholder-default.md`. **Coverage gap (deferred):** no unit test asserts `placeholder_api_enabled()` when env is unset (T4 CLI smoke forces placeholder via `env=` only).
+
 ## phase-3-observability — 2026-05-30
 
 - Plan closure (v1.1): Marked `.dev/plans/phase-3-observability/plan.md` **Complete**; populated §8.1–§8.5 auditor handoff; refreshed `context-map.md` §Post-execution. Verification at implementation SHA `a247cfe`: 56 passed (Phase 3 test surface). Rationale: closes orchestrator handoff gate for adversarial audit. **Coverage gap (deferred):** `MVP_PICKUP.md` G5/G6 checkboxes not updated in this closure.

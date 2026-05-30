@@ -17,13 +17,6 @@ Closes when:  module marked deprecated in module-map or parity tests added and p
 ```
 
 ```
-Question:     What is the production target for placeholder mode — default off behind explicit dev flag, or retain default-on for portfolio demos?
-Impact:       api/config (ARIA_PLACEHOLDER_API defaults true), deployment docs, eval expectations
-Code evidence: Default is placeholder; easy to misread "working API" without live backends.
-Closes when:  default flipped or environments explicitly documented (dev=placeholder, prod=live)
-```
-
-```
 Question:     Will A2A move from in-process registry to cross-process HTTP delegation in production scope?
 Impact:       aria/protocols/a2a, docker-compose profiles, A2A_SHARED_SECRET
 Code evidence: A2AClient/A2AServer + httpx implemented and tested; main app does not mount A2A router; A2AClient only used in tests. Cards exposed via GET /agents only.
@@ -47,3 +40,7 @@ Closes when:  explicit decision to wire orchestration/MCP into production entry 
 ## Resolved (2026-05-24)
 
 **Query path: orchestration vs services** — Resolved in practice: **services**. Both POST /query and `aria query` call `run_compliance_query()` (HybridRetriever + LLM). Scratch `free_query_node` is vector-only snippet listing with different behavior; not used in production.
+
+## Resolved (2026-05-30)
+
+**Placeholder API default (G8)** — `ARIA_PLACEHOLDER_API` code default flipped from `"true"` to `"false"` in `api/config.py` on `dev`. Live mode is the baseline; operators set `ARIA_PLACEHOLDER_API=true` for synthetic placeholder responses without backends. See `.dev/decision-logs/T1-g8-placeholder-default.md`.
