@@ -35,6 +35,11 @@ cases:
     category: happy
     tier: medium
 
+  - id: eval-replay-gdpr-erasure
+    file: retrieval/q6_replay_gdpr_erasure.yaml
+    category: happy
+    tier: slow
+
   # -- Trace: golden paths (fast) -------------------------------------------
   - id: trace-golden-ingestion
     file: trace/golden_ingestion.yaml

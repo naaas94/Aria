@@ -195,9 +195,6 @@ def run_retrieval_check(case: GoldenCase) -> CheckOutcome:
         if not hit:
             issues.append(f"Component '{component}' not found in context")
 
-    if spec.requires_multi_hop:
-        sub["multi_hop_declared"] = True
-
     passed = all(sub.values()) if sub else True
     return CheckOutcome(
         passed=passed,

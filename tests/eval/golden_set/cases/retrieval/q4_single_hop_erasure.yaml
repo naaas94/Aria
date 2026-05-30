@@ -6,7 +6,8 @@ description: >
   Single-hop factual question -- vector RAG should handle this well.
 input:
   question: "What is the right to erasure under GDPR?"
-  retrieved_context: ""
+  retrieved_context: |
+    Erasure rights include the right to be forgotten for personal data subjects.
 expect:
   retrieval:
     expected_components:

@@ -37,10 +37,11 @@ jobs:
             tests/eval/graphrag_vs_vector_rag.py \
             -m eval -v --tb=short
 
-      - name: Golden set (fast tier, includes replay)
+      - name: Golden set (fast tier)
         run: |
           python -m pytest tests/eval/golden_set/test_goldens.py \
             --golden-tier=fast -m golden -v --tb=short
+          python -m pytest tests/eval/golden_set/test_runner_unit.py -v --tb=short
 
       - name: API contract and security tests
         run: |

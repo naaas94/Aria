@@ -7,7 +7,9 @@ description: >
   with policy gap check.
 input:
   question: "Which EU AI Act requirements affect our systems and have no existing policy coverage?"
-  retrieved_context: ""
+  retrieved_context: |
+    The crm system has an obligation that the engineering team must fulfill.
+    Policy coverage shows a gap that remains uncovered for this requirement.
 expect:
   retrieval:
     expected_components:

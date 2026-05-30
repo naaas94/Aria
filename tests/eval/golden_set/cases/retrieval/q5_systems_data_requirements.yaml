@@ -6,7 +6,9 @@ description: >
   Data-type driven traversal: system -> data_types -> matching requirements -> regulations.
 input:
   question: "List all systems processing personal data and the regulatory requirements that apply to them"
-  retrieved_context: ""
+  retrieved_context: |
+    The hr platform processes personal_data and must meet gdpr obligations.
+    Each system shall document applicable data protection requirements.
 expect:
   retrieval:
     expected_components:
