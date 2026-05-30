@@ -16,7 +16,12 @@ import litellm
 import structlog
 from pydantic import BaseModel, ValidationError
 
-from aria.observability.metrics import LLM_CALL_COUNTER, LLM_CALL_DURATION
+from aria.observability.metrics import (
+    LLM_CALL_COUNTER,
+    LLM_CALL_DURATION,
+    LLM_COST_COUNTER,
+    TELEMETRY_WRITE_ERRORS_COUNTER,
+)
 from aria.observability.telemetry_store import get_telemetry_store
 
 logger = logging.getLogger(__name__)
@@ -263,14 +268,20 @@ class LLMClient:
                         completion_tokens=completion_tokens,
                         cost_usd=cost,
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm").inc()
+                    logger.warning(
+                        "telemetry store write failed: %s",
+                        type(exc).__name__,
+                    )
                 logger.debug(
                     "LLM response in %.2fs (attempt %d, model=%s)",
                     elapsed, attempt, self.model,
                 )
                 LLM_CALL_COUNTER.labels(model=self.model, status="success").inc()
                 LLM_CALL_DURATION.labels(model=self.model).observe(elapsed)
+                if cost is not None:
+                    LLM_COST_COUNTER.labels(model=self.model).inc(cost)
                 return content
             except Exception as exc:
                 if attempt == self.max_retries:
@@ -303,8 +314,12 @@ class LLMClient:
                             cost_usd=None,
                             error_type=type(exc).__name__,
                         )
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm").inc()
+                        logger.warning(
+                            "telemetry store write failed: %s",
+                            type(exc).__name__,
+                        )
                     LLM_CALL_COUNTER.labels(model=self.model, status="error").inc()
                     LLM_CALL_DURATION.labels(model=self.model).observe(err_elapsed_ms / 1000.0)
                     raise

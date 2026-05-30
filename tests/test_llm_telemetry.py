@@ -8,7 +8,12 @@ import pytest
 import structlog.contextvars
 
 from aria.observability import telemetry_store as ts_mod
+from aria.observability.metrics import LLM_COST_COUNTER
 from aria.observability.telemetry_store import TelemetryStore, close_telemetry_store
+
+
+def _counter_value(counter, **labels) -> float:
+    return counter.labels(**labels)._value.get()
 
 
 @pytest.fixture
@@ -124,3 +129,50 @@ async def test_complete_timeout_records_timeout_status(
     assert row is not None
     assert row["status"] == "timeout"
     assert row["error_type"] == "TimeoutError"
+
+
+@pytest.mark.asyncio
+async def test_complete_increments_llm_cost_counter_when_cost_present(
+    telemetry_store: TelemetryStore,
+) -> None:
+    structlog.contextvars.clear_contextvars()
+    mock_response = _mock_success_response(response_cost=0.002)
+
+    before = _counter_value(LLM_COST_COUNTER, model="gpt-4o-mini")
+
+    with (
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=mock_response),
+        patch("aria.llm.client.time") as mock_time,
+    ):
+        mock_time.monotonic.side_effect = [1000.0, 1000.05]
+        from aria.llm.client import LLMClient
+
+        client = LLMClient()
+        await client.complete([{"role": "user", "content": "Hi"}])
+
+    assert _counter_value(LLM_COST_COUNTER, model="gpt-4o-mini") == pytest.approx(
+        before + 0.002,
+    )
+
+
+@pytest.mark.asyncio
+async def test_complete_skips_llm_cost_counter_when_cost_absent(
+    telemetry_store: TelemetryStore,
+) -> None:
+    structlog.contextvars.clear_contextvars()
+    mock_response = _mock_success_response()
+    mock_response._hidden_params = {}
+
+    before = _counter_value(LLM_COST_COUNTER, model="gpt-4o-mini")
+
+    with (
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=mock_response),
+        patch("aria.llm.client.time") as mock_time,
+    ):
+        mock_time.monotonic.side_effect = [1000.0, 1000.05]
+        from aria.llm.client import LLMClient
+
+        client = LLMClient()
+        await client.complete([{"role": "user", "content": "Hi"}])
+
+    assert _counter_value(LLM_COST_COUNTER, model="gpt-4o-mini") == before
