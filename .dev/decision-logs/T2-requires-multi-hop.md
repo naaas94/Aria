@@ -1,6 +1,6 @@
 # T2 — `requires_multi_hop` stub removal
 
-**Plan:** phase-2-eval-honesty v1.0  
+**Plan:** phase-2-eval-honesty v1.2  
 **Subtask:** T2  
 **Date:** 2026-05-30
 

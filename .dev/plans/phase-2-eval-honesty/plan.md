@@ -1,7 +1,7 @@
 # Plan — phase-2-eval-honesty
 
-**Version:** 1.0  
-**Status:** Ready for execution  
+**Version:** 1.2  
+**Status:** Complete (amendment pending — audit fail F-01, F-03)  
 **Orchestrator skill:** orchestrator-planning v0.6  
 **Packets:** `.dev/plans/phase-2-eval-honesty/packets/`
 
@@ -269,3 +269,90 @@ Packets emitted at:
 - `.dev/plans/phase-2-eval-honesty/packets/T4.md`
 
 Each packet is self-contained (§1 verbatim, §2 verbatim, subtask block verbatim, filtered §5.2 / §5.4 items).
+
+---
+
+## Plan v1.2 — amendment extension (2026-05-30)
+
+**Audit consumed:** `.dev/audits/2026-05-30-phase-2-eval-honesty.md`  
+**Audit verdict:** **fail** — majors **F-01** (plan §8 not at `HEAD`), **F-03** (`test_runner_unit.py` not in CI)  
+**Non-goals (amendment):** Revert T1–T4 code; implement real `requires_multi_hop` validation; golden negative for keyword-mismatch context (F-06); committed-fixture unit test without mock (F-05); MVP_PICKUP / AUDIT_DIGEST sync (F-08 — Phase 5); Option B/C retrieval wiring.
+
+**Packet paths:** `.dev/plans/phase-2-eval-honesty/packets/T5.md`, `T6.md`, `T7.md`
+
+### Amendment dependency DAG
+
+```mermaid
+graph TD
+    T5[T5: CI wire test_runner_unit.py]
+    T6[T6: §2 contract reconciliation]
+    T7[T7: Closure — commit artifacts refresh §8]
+    T5 --> T7
+    T6 --> T7
+```
+
+**Parallel group: {T5, T6}** — disjoint file sets. **T7** requires both.
+
+---
+
+## §7 Amendment subtasks
+
+*Original T1–T4 specs and §§0–6 above are unchanged. Remediation closes audit majors F-01, F-03 and minor F-04; F-07 fixed in T7 §8.1 edit.*
+
+---
+
+### T5 — Wire runner unit tests into PR CI (F-03)
+
+| Field | Content |
+|-------|---------|
+| **ID** | T5 |
+| **Scope** | Extend `.github/workflows/ci.yml` golden-set step so `pytest tests/eval/golden_set/test_runner_unit.py` runs on every PR. Without this, reintroducing the `multi_hop_declared` stub would not fail medium/slow goldens (keyword-only pass); only unit tests gate stub regression. |
+| **Files to touch** | `.github/workflows/ci.yml` (golden-set step `run:` block only) |
+| **Contract bindings** | §2 Tests (`test_runner_unit.py` must be CI-gated post-amendment). §2 CLI surface unchanged. Amendment §2 Tests *Landed:* row (T6 lands narrative; T5 lands behavior). |
+| **Inputs** | T1–T4 complete; audit F-03 |
+| **Outputs** | CI step invokes `test_runner_unit.py` after or alongside existing `test_goldens.py --golden-tier=fast` invocation; local exit: `pytest tests/eval/golden_set/test_runner_unit.py -q` → all pass. |
+| **Kill criteria** | (a) HALT if any change outside the `Golden set (fast tier)` step's `run:` script (no env, `name:`, or other step edits). (b) HALT if `-m golden` is applied to a combined invocation that excludes `test_runner_unit.py` (unit file has no `golden` mark). (c) HALT if `test_runner_unit.py` is absent at HEAD. (d) HALT if workflow YAML fails `python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"`. |
+| **Log tier** | standard |
+| **Risks & mitigations** | Nightly still omits unit file unless explicitly added — audit prioritized PR; optional second line in `nightly.yml` golden step is out of scope unless executor confirms <5 min job budget headroom and audit re-run requests it. |
+
+---
+
+### T6 — §2 contract reconciliation (F-04)
+
+| Field | Content |
+|-------|---------|
+| **ID** | T6 |
+| **Scope** | Append **§2 Amendment — contract deltas** (below) into this plan's v1.2 extension block. Align §2 Tests prose with shipped symbol `test_run_replay_check_passes_with_inline_fixture`. Record T5 CI wiring intent in CHANGELOG. No code changes unless kill criterion (b) fires. |
+| **Files to touch** | `.dev/plans/phase-2-eval-honesty/plan.md` (append *Landed:* rows under v1.2 §2 Amendment only), `CHANGELOG.md`, `.dev/decision-logs/T2-requires-multi-hop.md` (plan version header line only) |
+| **Contract bindings** | Amendment §2 block. Original §2 rows in §§0–6 remain read-only. |
+| **Inputs** | T1–T4 complete; audit F-04 |
+| **Outputs** | (1) §2 Amendment — contract deltas present under v1.2 extension. (2) CHANGELOG entry for plan v1.2 amendment / T5–T7. (3) Decision log header references plan v1.2. |
+| **Kill criteria** | (a) HALT if amendment edits prose in original §§0–6 or §8 except where T7 owns §8.1/§8.6 updates. (b) HALT if shipped test function name at `tests/eval/golden_set/test_runner_unit.py` differs from audit evidence and reconciliation requires renaming tests (escalate — prefer plan *Landed:* over rename). (c) HALT if `test_run_replay_check_passes_with_inline_fixture` is absent at HEAD. |
+| **Log tier** | standard |
+| **Risks & mitigations** | Copy test name from HEAD `test_runner_unit.py`, not from original §2 Typed-surface bullet. |
+
+---
+
+### T7 — Plan closure, audit commit, context map refresh (F-01, F-02, F-07)
+
+| Field | Content |
+|-------|---------|
+| **ID** | T7 |
+| **Scope** | Commit plan v1.1+§8 (if not at `HEAD`), commit audit artifact, refresh `context-map.md` with closure SHA and *Post-execution* staleness note. Update §8.1 (closure SHA, clean-tree verification, remove false “clean at handoff” claim per F-07). Add §8.6 audit remediation cross-link. Re-run §8.1 verification commands on **clean checkout** at post-amendment closure SHA (includes T5 CI change committed). |
+| **Files to touch** | `.dev/plans/phase-2-eval-honesty/plan.md` (§8.1, §8.4 F-01/F-03 disposition, §8.6 new), `.dev/plans/phase-2-eval-honesty/context-map.md`, `.dev/audits/2026-05-30-phase-2-eval-honesty.md` (commit if untracked) |
+| **Contract bindings** | §8 auditor handoff schema (orchestrator-planning v0.6 §8). Context map SHA must match closure SHA. |
+| **Inputs** | T5 (CI wired), T6 (§2 Amendment landed) |
+| **Outputs** | (1) `git show HEAD:.dev/plans/phase-2-eval-honesty/plan.md` shows v1.2 with §8 and v1.2 amendment block. (2) Audit file at `HEAD`. (3) Context map *Post-execution* section with HEAD SHA. (4) §8.1 records actual closure SHA; §8.6 links audit + T5–T7. (5) §8.4 marks F-01, F-03 **closed** with evidence. |
+| **Kill criteria** | (a) HALT if T5 or T6 not complete. (b) HALT if §8.1 verification runs on dirty tree (stash/commit unrelated changes first). (c) HALT if any §8.2 path fails `git show HEAD:<path>` at recorded closure SHA. (d) HALT if `ci.yml` at HEAD still lacks `test_runner_unit.py` invocation (F-03 not closed). |
+| **Log tier** | standard |
+| **Risks & mitigations** | Closure SHA will differ from audit SHA `3a60717`. Record post-amendment SHA in §8.1, not audit SHA. Do not commit unrelated `uv.lock` churn unless user requests. |
+
+---
+
+### §2 Amendment — contract deltas (T6 lands; binding post-v1.2)
+
+| Topic | *Landed:* delta |
+|-------|-----------------|
+| **Tests — replay round-trip symbol** | Shipped name: `test_run_replay_check_passes_with_inline_fixture` in `tests/eval/golden_set/test_runner_unit.py` (supersedes original §2 Typed-surface reference to `test_run_replay_check_with_fixture`). Golden slow tier still provides on-disk `eval-replay-gdpr-erasure.json` E2E round-trip. |
+| **Tests — CI gate for runner unit file** | PR CI: `.github/workflows/ci.yml` `Golden set (fast tier)` step runs `pytest tests/eval/golden_set/test_runner_unit.py` (owned by T5). Verification: inspect workflow at HEAD; local `pytest tests/eval/golden_set/test_runner_unit.py -q` → all pass. |
+| **Tests — deferred (unchanged)** | F-05 committed-fixture unit load without mock; F-06 golden negative for wrong `retrieved_context` — remain deferred per audit §14. |
