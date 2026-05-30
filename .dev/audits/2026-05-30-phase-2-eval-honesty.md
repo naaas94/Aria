@@ -231,3 +231,95 @@ No `narrative-concealment` on cold-read F-03 (CI gap) — decision log does not 
 - Reconcile **F-07** when committing §8 — update §8.1 working-tree sentence.
 - Consider closing `.dev/AUDIT_DIGEST.md` #8 and `evaluation_ci_audit.md` P1 in Phase 5 — code fix landed; digest still describes stub behavior.
 - `uv.lock` dirty at audit — unrelated to Phase 2; do not mix into closure commit unless intentional.
+
+---
+
+## 15. Re-audit — revision 2
+
+**Audit document revision:** 2  
+**Supersedes:** Revision 1 §13 Verdict (`fail`) and revision 1 §14 orchestrator notes for F-01/F-03/F-07 only.  
+**Does not supersede:** Revision 1 §§1–12 historical record (initial cold read, findings, adversarial log at `3a60717`).  
+**Re-audit date:** 2026-05-30  
+**Re-audit `HEAD`:** `e3036a3fa2a53ac53f21972f3e00f856b6132679`  
+**Remediation commits (since rev. 1):** `678aaea` T5 (CI) · `63d65a2` T6 (§2 Amendment) · `26b05116` / `e3036a3` T7 (plan §8 + audit commit)  
+**Working tree at re-audit:** clean except untracked `packets/T5.md`, `T6.md`, `T7.md` (not in §8.2 chain)
+
+### 15.1 Omission-free artifact checklist (re-pass)
+
+| Surface | Opened / verified |
+|---------|---------------------|
+| Plan v1.2 + amendment + §8 | `git show HEAD:.dev/plans/phase-2-eval-honesty/plan.md` |
+| Context map *Post-execution* | HEAD |
+| Revision 1 audit (this file) | HEAD |
+| `ci.yml` golden step | HEAD — line 44 `test_runner_unit.py` |
+| `test_runner_unit.py` | HEAD — `test_run_replay_check_passes_with_inline_fixture` present |
+| `CHANGELOG.md` phase-2 section | HEAD — T5/T6 entries |
+| `T2-requires-multi-hop.md` | HEAD |
+| Code unchanged since T4 | `git diff 3a60717..HEAD` — plan/audit/ci/changelog/context only after T4 |
+
+### 15.2 Phase 0 cold-read (re-run — fresh)
+
+**Inputs:** §1 task statement, §2 + §2 Amendment, diff `3a60717..HEAD`, tests at `e3036a3`.
+
+1. **CI golden step** — Second pytest line runs `test_runner_unit.py` without `-m golden`; addresses rev. 1 F-03.
+2. **Plan at HEAD** — v1.2 **Complete**, §8 + amendment block present; addresses rev. 1 F-01.
+3. **§8.1 Tree SHA** — Records `26b05116` but re-audit `HEAD` is `e3036a3` (second T7 commit, same parent `63d65a2`); closure pointer is one commit stale.
+4. **Untracked amendment packets** — `packets/T5–T7.md` on disk only; not required by §8.2 at HEAD.
+5. **Remediation scope** — No new application code; T5–T7 are process/CI/contract closure only.
+6. **Golden behavior** — Unchanged since T4; 38 tests pass at re-audit.
+
+### 15.3 Provenance log (re-audit)
+
+| Check | Result |
+|-------|--------|
+| Plan v1.2 + §8 at `HEAD` | **yes** — F-01 **resolved** |
+| Audit rev. 1 at `HEAD` | **yes** |
+| `ci.yml` → `test_runner_unit.py` | **yes** — F-03 **resolved** |
+| §2 Amendment *Landed:* rows | **yes** — F-04 **resolved** |
+| Context map *Post-execution* | **yes** — F-02 **resolved** (staleness documented; scout SHA still `ee87002`) |
+| §8.1 closure SHA vs `HEAD` | **diverged** — plan/context cite `26b05116`, audit `HEAD` is `e3036a3` → **F-11** (new, minor) |
+| Untracked `packets/T5–T7.md` | on-disk-only — observation, non-blocking |
+
+### 15.4 Finding status vs revision 1
+
+| Prior ID | Prior severity | Prior type | Status | Evidence at `e3036a3` |
+|----------|----------------|------------|--------|------------------------|
+| F-01 | major | artifact-not-in-HEAD | **resolved** | `git show HEAD:plan.md` → v1.2, §8, Status Complete |
+| F-02 | major | context-map-stale | **resolved** | `context-map.md` §Post-execution with closure note |
+| F-03 | major | coverage-gap | **resolved** | `ci.yml` lines 42–44 invoke `test_runner_unit.py` |
+| F-04 | minor | contract-violation | **resolved** | Plan §2 Amendment *Landed:* `test_run_replay_check_passes_with_inline_fixture` |
+| F-05 | minor | coverage-gap | **open** | Deferred per plan §2 Amendment / §8.4 |
+| F-06 | minor | coverage-gap | **open** | Deferred per CHANGELOG T1 |
+| F-07 | minor | narrative-concealment | **resolved** | §8.1 “clean at closure commit” (no false pre-commit handoff claim) |
+| F-08 | minor | intent-drift | **open** | MVP_PICKUP / AUDIT_DIGEST still pre-fix narrative; Phase 5 |
+| F-09 | observation | — | **open** | Option A honesty semantics unchanged (by design) |
+| F-10 | observation | — | **open** | fixture `case_id` coupling still not enforced |
+
+**New (revision 2 only):**
+
+| ID | Severity | Type | Description |
+|----|----------|------|-------------|
+| F-11 | minor | decision-log-stale | §8.1 and context-map *Post-execution* cite closure SHA `26b05116`; branch tip / re-audit `HEAD` is `e3036a3` (superseding T7). `git show 26b05116:<path>` ≠ `git show HEAD:<path>` for plan tail. |
+
+### 15.5 Adversarial re-check (remediation-focused)
+
+| Scenario | Expected | Actual | Result |
+|----------|----------|--------|--------|
+| F-03 — stub regression gated in PR CI | `test_runner_unit.py` in `ci.yml` | Line 44 present; separate invocation (no `-m golden`) | **pass** |
+| F-01 — plan closure archivable | `git show HEAD:plan.md` has §8 | v1.2 Complete + §8.6 remediation table | **pass** |
+| F-04 — replay test symbol | Amendment name matches code | `test_run_replay_check_passes_with_inline_fixture` at `test_runner_unit.py:60` | **pass** |
+| Phase 2 combined exit | 38 passed | `pytest test_runner_unit.py + test_goldens.py --golden-tier=slow` → 38 passed | **pass** |
+| §8.2 paths at recorded closure SHA | `git show <§8.1 SHA>:path` for all rows | Fails if SHA is `26b05116` but tip is `e3036a3` for identical §8 content — content equivalent; SHA pointer wrong | **fail** (F-11 only) |
+| T7 kill (d) — CI still lacks unit file | Must have `test_runner_unit.py` | Present | **pass** |
+
+### 15.6 Re-audit verdict
+
+### `pass-with-conditions`
+
+Revision 1 blockers **F-01** and **F-03** are **resolved** at `e3036a3`. Substantive Phase 2 intent remains delivered; remediation did not regress T1–T4 code paths.
+
+**Condition (non-blocking):** **F-11** — Update plan §8.1 and `context-map.md` *Post-execution* closure SHA to `e3036a3` (or document that `26b05116` is intentional archival tip and branch moved — prefer aligning to `HEAD`).
+
+**Still open by design (unchanged from rev. 1):** F-05, F-06, F-08, F-09, F-10.
+
+**Merge recommendation:** Accept Phase 2 + amendment closure; fix F-11 in a small follow-up doc commit or fold into next hygiene pass.
