@@ -76,6 +76,20 @@ uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
 pytest
 ```
 
+### Live mode
+
+Steps 1–6 above are the **live** path (Neo4j, Chroma, and an LLM). The code default is `ARIA_PLACEHOLDER_API=false`; set it explicitly if your shell or `.env` still overrides it:
+
+```bash
+# Live mode (requires Neo4j + Chroma + LLM from steps 3–4)
+export ARIA_PLACEHOLDER_API=false   # default when unset; shown for clarity
+aria query "Which requirements affect our systems?"
+aria query "Which requirements affect our systems?" --json   # optional contract check
+aria impact <REGULATION_ID>
+```
+
+To explore without backends (synthetic answers, `X-ARIA-Mode: placeholder`), set `ARIA_PLACEHOLDER_API=true` in `.env` or your shell.
+
 Full-stack Docker (API + DBs): `docker compose --profile full up -d`.
 
 ## CLI (`aria`)
@@ -117,8 +131,8 @@ After `pip install -e .`, the **`aria`** console script is available. It loads `
 
 ### Modes
 
-`ARIA_PLACEHOLDER_API=true` (default): `/impact` and `/query` return documented placeholders with `X-ARIA-Mode: placeholder` — no live infrastructure required.
-Set to `false` to run against Neo4j, Chroma, and an LLM; missing dependencies yield `503` with `missing_dependencies`.
+`ARIA_PLACEHOLDER_API=false` (default): `/impact` and `/query` run against Neo4j, Chroma, and an LLM; missing dependencies yield `503` with `missing_dependencies`.
+Set to `true` for placeholder/demo mode — documented placeholders with `X-ARIA-Mode: placeholder` and no live infrastructure required. See [Quickstart — Live mode](#live-mode) for a full-stack example.
 
 ### Endpoints
 
