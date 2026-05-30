@@ -4,6 +4,8 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 ## phase-3-observability — 2026-05-30
 
+- T6 (Per-request cost rollup): Added `TelemetryStore.cost_by_request(request_id)` — sums non-null `cost_usd` for matching `llm_calls` rows, returns `None` when no cost data (not `0.0`). Rationale: store-only helper for operator scripts without changing `/telemetry` JSON. + extended `tests/test_telemetry_store.py` (`test_cost_by_request_*`).
+
 - T4 (Graph query duration histogram wiring): `Neo4jClient.execute_read` and `execute_write` now observe `GRAPH_QUERY_DURATION` with `query_name` labels `read`/`write` after session release. Rationale: closes G5 graph latency gap so operators can correlate counter volume with query latency. + added `tests/unit/test_graph_client.py`.
 - T3 (HTTP middleware duration histogram): `TelemetryMiddleware` now observes `HTTP_REQUEST_DURATION` (seconds, `method`/`status_code` labels) immediately after `HTTP_REQUEST_COUNTER.inc()` inside the existing telemetry `try` block. Rationale: closes G5 — Prometheus p50/p95/p99 for HTTP latency without path cardinality. + extended `tests/test_middleware_telemetry.py` (`test_http_request_duration_histogram_observed`, `test_skipped_paths_do_not_observe_http_duration_histogram`). **Coverage gap (deferred):** no test asserts `observe` receives `latency_ms / 1000.0` rather than raw milliseconds (would require spying on observe args; T8 sum checks are label-scoped only).
 

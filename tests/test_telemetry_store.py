@@ -133,6 +133,55 @@ def test_cost_summary_aggregates(store: TelemetryStore) -> None:
     assert out["by_model"]["m-b"]["completion_tokens"] == 2
 
 
+def test_cost_by_request_sums_nonull_rows(store: TelemetryStore) -> None:
+    base = _iso()
+    for cost in (0.001, 0.002):
+        store.record_llm_call(
+            request_id="req-A",
+            model="m",
+            latency_ms=1.0,
+            status="success",
+            attempt=1,
+            cost_usd=cost,
+            ts=base,
+        )
+    assert store.cost_by_request("req-A") == pytest.approx(0.003)
+
+
+def test_cost_by_request_returns_none_when_no_cost_rows(store: TelemetryStore) -> None:
+    store.record_llm_call(
+        request_id="req-B",
+        model="m",
+        latency_ms=1.0,
+        status="success",
+        attempt=1,
+        cost_usd=None,
+        ts=_iso(),
+    )
+    assert store.cost_by_request("req-B") is None
+
+
+def test_cost_by_request_returns_none_for_unknown_request_id(
+    store: TelemetryStore,
+) -> None:
+    assert store.cost_by_request("no-such-id") is None
+
+
+def test_cost_by_request_returns_zero_when_cost_is_explicitly_zero(
+    store: TelemetryStore,
+) -> None:
+    store.record_llm_call(
+        request_id="req-zero",
+        model="m",
+        latency_ms=1.0,
+        status="success",
+        attempt=1,
+        cost_usd=0.0,
+        ts=_iso(),
+    )
+    assert store.cost_by_request("req-zero") == pytest.approx(0.0)
+
+
 def test_request_summary_aggregates(store: TelemetryStore) -> None:
     base = _iso(0.5)
     for i, code in enumerate([200, 200, 404, 500]):
