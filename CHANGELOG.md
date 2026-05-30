@@ -4,6 +4,7 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 ## phase-2-eval-honesty — 2026-05-30
 
+- T2 (Remove `requires_multi_hop` always-pass stub): Deleted `sub["multi_hop_declared"]` from `run_retrieval_check`; added `tests/eval/golden_set/test_runner_unit.py` for retrieval pass/fail, flag-independence, and replay pass/missing-fixture paths. Rationale: stub added false signal without hop validation; field stays declarative on schema/YAML. See `.dev/decision-logs/T2-requires-multi-hop.md`.
 - T4 (Slow-tier replay golden for GDPR erasure): Added `q6_replay_gdpr_erasure.yaml`, hand-authored `eval-replay-gdpr-erasure.json`, and manifest entry so `run_replay_check` runs end-to-end in nightly without live HybridRetriever. Rationale: plan §0 Flag 3 — recorded fixture exercises the previously unreachable replay lens. **Coverage gap (deferred):** no test asserts mismatch between fixture `case_id` and YAML `id` (runner does not validate that coupling).
 
 - T1 (Synthetic retrieval context for medium-tier goldens): Filled `retrieved_context` in retrieval cases q1–q5 with neutral keyword-matching template text so `run_retrieval_check` passes deterministically without live HybridRetriever. Rationale: Option A from plan §0 Flag 1 — lowest infrastructure delta for eval honesty. **Coverage gap (deferred):** no golden or unit test asserts that partial or wrong `retrieved_context` fails keyword checks (T2 `test_runner_unit.py` fail path).

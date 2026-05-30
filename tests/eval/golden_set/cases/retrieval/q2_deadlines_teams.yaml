@@ -6,7 +6,9 @@ description: >
   Requires regulation -> article -> deadline + requirement -> system -> team.
 input:
   question: "What are all the compliance deadlines for the EU AI Act and which teams are responsible?"
-  retrieved_context: ""
+  retrieved_context: |
+    Compliance planning lists a 2026 deadline tied to article 17.
+    The legal team owns follow-through on that deadline.
 expect:
   retrieval:
     expected_components:

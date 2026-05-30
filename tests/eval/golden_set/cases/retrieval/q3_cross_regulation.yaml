@@ -6,7 +6,9 @@ description: >
   Cross-regulation multi-hop: two regulation trees joined via team ownership.
 input:
   question: "Which teams are affected by both GDPR and EU AI Act requirements?"
-  retrieved_context: ""
+  retrieved_context: |
+    The data science team is in scope for both gdpr and ai act programs.
+    Cross-regulation ownership is shared across data protection and artificial intelligence workstreams.
 expect:
   retrieval:
     expected_components:
