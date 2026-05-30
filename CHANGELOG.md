@@ -2,6 +2,13 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## phase-2-eval-honesty — 2026-05-30
+
+- T4 (Slow-tier replay golden for GDPR erasure): Added `q6_replay_gdpr_erasure.yaml`, hand-authored `eval-replay-gdpr-erasure.json`, and manifest entry so `run_replay_check` runs end-to-end in nightly without live HybridRetriever. Rationale: plan §0 Flag 3 — recorded fixture exercises the previously unreachable replay lens. **Coverage gap (deferred):** no test asserts mismatch between fixture `case_id` and YAML `id` (runner does not validate that coupling).
+
+- T1 (Synthetic retrieval context for medium-tier goldens): Filled `retrieved_context` in retrieval cases q1–q5 with neutral keyword-matching template text so `run_retrieval_check` passes deterministically without live HybridRetriever. Rationale: Option A from plan §0 Flag 1 — lowest infrastructure delta for eval honesty. **Coverage gap (deferred):** no golden or unit test asserts that partial or wrong `retrieved_context` fails keyword checks (T2 `test_runner_unit.py` fail path).
+- T3 (Rename CI fast-tier golden step label): Renamed the `.github/workflows/ci.yml` step from "Golden set (fast tier, includes replay)" to "Golden set (fast tier)"; pytest command and env unchanged. **Coverage gap (deferred):** no pytest asserts workflow step display names; YAML `safe_load` validation is the only automated check in scope for this subtask.
+
 ## mvp-phase1-golden-wet-run — 2026-05-30
 
 - T8 (Plan closure and §8 auditor handoff): Marked plan v1.1 **Complete**; populated §8.1–§8.6 in `.dev/plans/mvp-phase1-golden-wet-run/plan.md`; refreshed `.dev/plans/mvp-phase1-golden-wet-run/context-map.md` with *Post-execution* staleness note (F-01); committed `.dev/audits/2026-05-30-mvp-phase1-golden-wet-run.md`. Verification at T7 HEAD (`5df123f`): 25 integration + 11 unit passed. Rationale: closes audit F-07 and F-01; F-08 remains open (deferred). **Coverage gap (deferred):** no automated check that §8.2 artifact paths remain present at HEAD after closure.
