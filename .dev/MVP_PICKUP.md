@@ -212,10 +212,10 @@ Also:
 
 Only if MVP Phases 0–4 are green:
 
-- [ ] Wire `MCPToolPortsAdapter` with live Neo4j/Chroma/LLM; use in scratch nodes
-- [ ] `aria query --orchestrated` or API flag routing through `OrchestrationGraph.execute`
-- [ ] Per-step trace persistence (beyond aggregate `orchestration.scratch` row)
-- [ ] Record asciicast / demo script from wet run
+- [x] Wire `MCPToolPortsAdapter` with live Neo4j/Chroma/LLM; use in scratch nodes
+- [x] `aria query --orchestrated` or API flag routing through `OrchestrationGraph.execute`
+- [x] Per-step trace persistence (beyond aggregate `orchestration.scratch` row)
+- [x] Record asciicast / demo script from wet run
 
 ---
 

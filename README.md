@@ -57,6 +57,23 @@ ARIA ships with a layered test and evaluation suite — unit, integration, golde
 
 **Nightly** (`.github/workflows/nightly.yml`) — spins up Neo4j + Chroma services, seeds the graph, runs full integration + golden slow tier + eval store, and uploads reports and eval artifacts.
 
+## Demo
+
+Portfolio walkthrough of the **orchestrated** query path (`aria query --orchestrated`): multi-agent scratch routing, `execution_trace` in JSON output, and per-step rows in `aria telemetry`. Answers use vector-only retrieval via the scratch graph — they are **not** identical to the standard GraphRAG `aria query` path.
+
+**Prerequisites:** live backends (`ARIA_PLACEHOLDER_API=false`), Neo4j + Chroma up, LLM configured, and a populated graph (see [Quickstart](#quickstart)).
+
+```bash
+bash .dev/demo/aria-mvp-demo.sh
+```
+
+Optional terminal recording (requires [asciinema](https://asciinema.org/)):
+
+```bash
+asciinema rec .dev/demo/aria-mvp-demo.cast
+# run the demo script in the recording shell, then exit to save
+```
+
 ## Quickstart
 
 ```bash
