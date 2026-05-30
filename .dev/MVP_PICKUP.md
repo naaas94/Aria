@@ -197,9 +197,9 @@ Also:
 ### Phase 4 — Product defaults & operator UX (0.5 day)
 
 - [x] Decide placeholder default for “MVP branch” (**G8**) — flipped code default to `false` on `dev` (T1)
-- [ ] README Quickstart: explicit “live mode” block with `ARIA_PLACEHOLDER_API=false`
-- [ ] **QUICK_TODOS:** Local model swap (qwen) — document `LLM_MODEL` / `LLM_BASE_URL` in wet run log
-- [ ] Optional: `aria query --json` smoke in CI via CliRunner (already have help tests)
+- [x] README Quickstart: explicit “live mode” block with `ARIA_PLACEHOLDER_API=false`
+- [x] **QUICK_TODOS:** Local model swap — `LLM_MODEL` / `LLM_BASE_URL` in wet run log template (T3-amend)
+- [x] Optional: `aria query --json` smoke in CI via CliRunner (T4)
 
 ### Phase 5 — Doc & architecture hygiene (0.5 day)
 

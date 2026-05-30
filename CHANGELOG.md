@@ -8,7 +8,11 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 - T2 (README live-mode Quickstart): Added **Live mode** subsection under Quickstart with `ARIA_PLACEHOLDER_API=false`, example `aria query` / `aria impact` commands, and placeholder-mode note; updated **HTTP Surface — Modes** to document `false` as the default and link to Quickstart. Rationale: operators following the README need an explicit live stack path aligned with the T1 G8 flip. **Coverage gap (deferred):** docs-only subtask; no automated check that README env-var spelling stays aligned with `api/config.py` if either changes.
 
+- T4 (`aria query --json` CLI smoke): Added `test_query_json_placeholder_returns_valid_payload` in `tests/unit/test_cli_entry.py` — invokes `aria query "test question" --json` with `env={"ARIA_PLACEHOLDER_API": "true"}` and asserts exit 0, five `_success_payload` keys, and `aria_mode == "placeholder"`. Rationale: contract coverage for JSON CLI path post–G8 flip without requiring live backends. **Coverage gap (deferred):** `service_unavailable` JSON path not exercised.
+
 - T3-amend (wet run log template, append-only): Retitled the wet-run section header; appended `## Wet run log template (copy for next session)` with blank scaffold including dedicated `LLM_MODEL=` / `LLM_BASE_URL=` lines (`.env.example` values + Ollama comment); consolidated `.dev/QUICK_TODOS` into a pointer. Rationale: T6 session block is immutable; future operators need an unambiguous LLM field template without overwriting golden-path history. **Coverage gap (deferred):** no pytest asserts MVP_PICKUP template shape (docs-only; kill criteria verified by diff/grep).
+
+- T5-amend (audit remediation, CHANGELOG + pickup checklist): Restored T4 tiered changelog bullet after T2 regression; synced `.dev/MVP_PICKUP.md` Phase 4 checklist with landed T2/T3-amend/T4 work. Rationale: closes audit F-03/F-06 narrative gaps without code changes. **Coverage gap (deferred):** no automated check that MVP_PICKUP Phase 4 rows stay aligned with CHANGELOG after future subtasks (docs-only).
 
 ## phase-3-observability — 2026-05-30
 
