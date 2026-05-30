@@ -101,3 +101,23 @@ LLM_CALL_DURATION = Histogram(
     ["model"],
     buckets=[0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 120.0],
 )
+
+HTTP_REQUEST_DURATION = Histogram(
+    "aria_http_request_duration_seconds",
+    "HTTP request latency in seconds",
+    ["method", "status_code"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+)
+
+GRAPH_QUERY_DURATION = Histogram(
+    "aria_graph_query_duration_seconds",
+    "Neo4j query execution time in seconds",
+    ["query_name"],
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
+)
+
+LLM_COST_COUNTER = Counter(
+    "aria_llm_cost_usd_total",
+    "Accumulated LLM cost in USD (Ollama: always 0, not incremented)",
+    ["model"],
+)

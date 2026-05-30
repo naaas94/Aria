@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import logging
+import time
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
 from neo4j import AsyncDriver, AsyncGraphDatabase, AsyncSession
 
 from aria.graph.schema import generate_constraint_statements, generate_index_statements
-from aria.observability.metrics import GRAPH_QUERY_COUNTER
+from aria.observability.metrics import GRAPH_QUERY_COUNTER, GRAPH_QUERY_DURATION
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +49,13 @@ class Neo4jClient:
         parameters: dict[str, Any] | None = None,
         database: str = "neo4j",
     ) -> list[dict[str, Any]]:
+        _start = time.monotonic()
         GRAPH_QUERY_COUNTER.labels(query_name="read").inc()
         async with self.session(database) as session:
             result = await session.run(query, parameters or {})
-            return [record.data() async for record in result]
+            records = [record.data() async for record in result]
+        GRAPH_QUERY_DURATION.labels(query_name="read").observe(time.monotonic() - _start)
+        return records
 
     async def execute_write(
         self,
@@ -59,10 +63,13 @@ class Neo4jClient:
         parameters: dict[str, Any] | None = None,
         database: str = "neo4j",
     ) -> list[dict[str, Any]]:
+        _start = time.monotonic()
         GRAPH_QUERY_COUNTER.labels(query_name="write").inc()
         async with self.session(database) as session:
             result = await session.run(query, parameters or {})
-            return [record.data() async for record in result]
+            records = [record.data() async for record in result]
+        GRAPH_QUERY_DURATION.labels(query_name="write").observe(time.monotonic() - _start)
+        return records
 
     async def initialize_schema(self) -> None:
         """Create uniqueness constraints and indexes if they don't exist."""

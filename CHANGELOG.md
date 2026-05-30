@@ -2,6 +2,25 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## phase-3-observability — 2026-05-30
+
+- Plan closure (v1.1): Marked `.dev/plans/phase-3-observability/plan.md` **Complete**; populated §8.1–§8.5 auditor handoff; refreshed `context-map.md` §Post-execution. Verification at implementation SHA `a247cfe`: 56 passed (Phase 3 test surface). Rationale: closes orchestrator handoff gate for adversarial audit. **Coverage gap (deferred):** `MVP_PICKUP.md` G5/G6 checkboxes not updated in this closure.
+
+- T8 (Phase 3 observability tests): Added unit/mock coverage for HTTP and graph duration histograms, LLM cost counter, pipeline `INGESTION_DURATION`, G6 `TELEMETRY_WRITE_ERRORS_COUNTER` on SQLite write failure (success and error paths), and multi-row `cost_by_request` sum in `tests/unit/test_metrics.py`, `tests/test_llm_telemetry.py`, and `tests/test_telemetry_store.py`. Rationale: closes deferred T2/T5 gaps and validates T1–T6 instrumentation with Prometheus delta checks. **Coverage gap (deferred):** mixed null and non-null `cost_usd` rows for one `request_id` (SQL `SUM` behavior assumed; no explicit test).
+
+- T7 (Ollama cost documentation): Documented expected zero cost for local Ollama in `README.md` (Tech Stack) and `.env.example` (LLM block). Rationale: operators seeing `total_cost_usd: 0` in `GET /telemetry` should not treat it as a bug. **Coverage gap (deferred):** docs-only subtask; no automated check that README and `.env.example` stay in sync if cost semantics change (T8 excludes T7).
+
+- T6 (Per-request cost rollup): Added `TelemetryStore.cost_by_request(request_id)` — sums non-null `cost_usd` for matching `llm_calls` rows, returns `None` when no cost data (not `0.0`). Rationale: store-only helper for operator scripts without changing `/telemetry` JSON. + extended `tests/test_telemetry_store.py` (`test_cost_by_request_*`).
+
+- T4 (Graph query duration histogram wiring): `Neo4jClient.execute_read` and `execute_write` now observe `GRAPH_QUERY_DURATION` with `query_name` labels `read`/`write` after session release. Rationale: closes G5 graph latency gap so operators can correlate counter volume with query latency. + added `tests/unit/test_graph_client.py`.
+- T3 (HTTP middleware duration histogram): `TelemetryMiddleware` now observes `HTTP_REQUEST_DURATION` (seconds, `method`/`status_code` labels) immediately after `HTTP_REQUEST_COUNTER.inc()` inside the existing telemetry `try` block. Rationale: closes G5 — Prometheus p50/p95/p99 for HTTP latency without path cardinality. + extended `tests/test_middleware_telemetry.py` (`test_http_request_duration_histogram_observed`, `test_skipped_paths_do_not_observe_http_duration_histogram`). **Coverage gap (deferred):** no test asserts `observe` receives `latency_ms / 1000.0` rather than raw milliseconds (would require spying on observe args; T8 sum checks are label-scoped only).
+
+- T2 (LLM client G6 telemetry errors + G5 cost counter): Replaced silent `except Exception: pass` around `record_llm_call` with warning log and `TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm")`; increment `LLM_COST_COUNTER` on success when `cost` is present. Rationale: aligns LLM path with middleware/agent observability and exposes accumulated USD cost in Prometheus. + added `tests/test_llm_telemetry.py` cost-counter tests. **Coverage gap (deferred to T8):** `TELEMETRY_WRITE_ERRORS_COUNTER` increment when `record_llm_call` raises on success and final-retry error paths.
+
+- T5 (Ingestion pipeline duration histogram): Observe `INGESTION_DURATION` at `ingest_document()` completion with `format=fmt.value` (`pdf`/`html`); timer starts after successful parse, not on PARSE_ERROR or SKIPPED_DUPLICATE early returns. Rationale: CLI/eval/seed corpus paths had zero Prometheus duration signal while HTTP smoke ingest already observed the metric. **Coverage gap (deferred to T8):** `TestIngestionPipelineDuration` in `tests/unit/test_metrics.py` — histogram +1 on completion and no increment on SKIPPED_DUPLICATE.
+
+- T1 (Phase 3 Prometheus metric definitions): Added `HTTP_REQUEST_DURATION`, `GRAPH_QUERY_DURATION`, and `LLM_COST_COUNTER` to `aria/observability/metrics.py` per frozen §2 contract. Rationale: downstream T2–T5 wire observe/increment calls against these symbols; defining them first avoids registration collisions. + added contract tests in `tests/unit/test_metrics.py` (`TestPhase3MetricDefinitions`).
+
 ## phase-2-eval-honesty — 2026-05-30
 
 - T6 (Plan v1.2 contract reconciliation): §2 Amendment records shipped replay test name (`test_run_replay_check_passes_with_inline_fixture`) and CI gate for `test_runner_unit.py`; see audit F-04. Rationale: closes contract drift between original §2 Typed-surface bullet and landed T2 symbol without renaming tests. **Coverage gap (deferred):** no automated check that plan §2 Amendment rows stay aligned with `test_runner_unit.py` def names after future edits.

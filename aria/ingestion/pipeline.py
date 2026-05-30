@@ -13,6 +13,7 @@ skips survive restarts; partial runs store ``pipeline_complete=false`` for ops v
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -25,6 +26,7 @@ from aria.graph.ingestion_record import is_pipeline_complete, upsert_ingestion_p
 from aria.ingestion.chunker import DocumentChunk, chunk_text
 from aria.ingestion.parsers.html_parser import ParsedHTMLDocument, parse_html
 from aria.ingestion.parsers.pdf_parser import ParsedDocument, parse_pdf
+from aria.observability.metrics import INGESTION_DURATION
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +127,7 @@ async def ingest_document(
         logger.error("Parse failed for %s: %s", path, exc)
         return IngestionResult(status=IngestionStatus.PARSE_ERROR, errors=[str(exc)])
 
+    _ingest_start = time.monotonic()
     result.document_hash = content_hash
 
     if neo4j_dedup and not force and content_hash not in _ingested_hashes:
@@ -195,6 +198,7 @@ async def ingest_document(
         except Exception as exc:
             logger.warning("Failed to persist IngestionRecord for %s: %s", content_hash[:12], exc)
 
+    INGESTION_DURATION.labels(format=fmt.value).observe(time.monotonic() - _ingest_start)
     return result
 
 

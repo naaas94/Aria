@@ -288,6 +288,19 @@ class TelemetryStore:
             "by_model": by_model,
         }
 
+    def cost_by_request(self, request_id: str) -> float | None:
+        with self._lock:
+            row = self._conn.execute(
+                """
+                SELECT SUM(cost_usd) FROM llm_calls
+                WHERE request_id = ? AND cost_usd IS NOT NULL
+                """,
+                (request_id,),
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return float(row[0])
+
     def request_summary(self, since: datetime) -> dict[str, Any]:
         cutoff = _since_iso(since)
         with self._lock:

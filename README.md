@@ -111,6 +111,8 @@ After `pip install -e .`, the **`aria`** console script is available. It loads `
 | **Build / lock** | hatchling · uv |
 | **Lint / type-check** | ruff · mypy (strict + Pydantic plugin) |
 
+**Ollama cost tracking:** Ollama (local) providers do not report request cost to LiteLLM (`response_cost=None`). The `aria_llm_cost_usd_total` Prometheus counter is not incremented for Ollama calls, and the `total_cost_usd` field in `GET /telemetry` will remain `0` for Ollama-only deployments. This is expected behavior. Cost tracking is active for cloud providers (OpenAI, Anthropic, etc.) that LiteLLM price-lists.
+
 ## HTTP Surface & Operational Behaviour
 
 ### Modes
