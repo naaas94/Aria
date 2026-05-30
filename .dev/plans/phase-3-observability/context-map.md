@@ -233,3 +233,12 @@ Disproven by: orchestrator choosing `method`+`status_code` only (align with exis
 - **`complete_structured`:** Docstring notes two `complete()` calls → two `llm_calls` rows per repair path; per-request rollup must sum multiple rows per `request_id`.
 - **Implicit contract (3+ files):** `TELEMETRY_WRITE_ERRORS` failures log exception **type only**, no traceback (`middleware`, `agents`, `orchestration/scratch/graph.py`) — G6 should match for `llm`.
 - **MVP gap table:** G5/G6 rows at MVP_PICKUP.md §91–92 match codebase state at exploration commit.
+
+---
+
+## §Post-execution (plan closure — 2026-05-30)
+
+- **Closure SHA:** same as plan §8.1 Tree SHA (`git rev-parse HEAD` when plan is v1.1 Complete)
+- **Implementation SHA (T1–T8 code):** `a247cfeedd76a74c9b27cb20cc03e171f283861e2`
+- **Scout SHA:** `ee87002297a495389b9bc79a510966dd30ab23f7` (unchanged in plan §0 / map header)
+- **Note:** All §File map `direct` rows were touched by T1–T8. Scout predictions (missing histograms, silent LLM swallows, no `cost_by_request`) are **stale-qualified** — verify outcomes against code at implementation SHA, not scout file contents. Plan v1.1 §8 at closure SHA is the auditor entry point.

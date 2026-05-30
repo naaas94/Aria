@@ -1,7 +1,7 @@
 # Plan: phase-3-observability
 
-**Version:** 1.0  
-**Status:** Active  
+**Version:** 1.1  
+**Status:** Complete  
 **Owner:** Ale  
 **Plan dir:** `.dev/plans/phase-3-observability/`
 
@@ -16,7 +16,7 @@
 
 **Skill version + commit SHA:** pre-plan-exploration v0.2 · `ee87002297a495389b9bc79a510966dd30ab23f7`
 
-**Staleness check:** The working tree is dirty at map generation (exploration artifacts only; no in-scope application files modified). Touched application files must be verified at execution start by executor.
+**Staleness check:** Scout SHA `ee870022` (map header). **Closure SHA** and post-execution notes: `context-map.md` §Post-execution and §8.1 below. All §File map `direct` rows were touched by T1–T8 at closure; verify landed behavior at closure SHA, not scout line numbers.
 
 **Scope-area ambiguity flags resolved at orchestrator level (§5.2 records the residual uncertainty):**
 
@@ -417,23 +417,101 @@ Packets saved to `.dev/plans/phase-3-observability/packets/T<n>.md`.
 
 | Packet | Subtask | Status |
 |--------|---------|--------|
-| T1.md | Metric definitions | emitted |
-| T2.md | LLM client G6+G5 | emitted |
-| T3.md | HTTP middleware G5 | emitted |
-| T4.md | Graph client G5 | emitted |
-| T5.md | Ingestion pipeline G5 | emitted |
-| T6.md | Per-request cost rollup | emitted |
-| T7.md | Docs | emitted |
-| T8.md | Tests | emitted |
+| T1.md | Metric definitions | landed (`a140945`) |
+| T2.md | LLM client G6+G5 | landed (`cbb884b`) |
+| T3.md | HTTP middleware G5 | landed (`139f4c0`) |
+| T4.md | Graph client G5 | landed (`4f1ac58`) |
+| T5.md | Ingestion pipeline G5 | landed (`c89493b`) |
+| T6.md | Per-request cost rollup | landed (`5a98ba9`) |
+| T7.md | Docs | landed (`4fd0df8`, `fef97b0`) |
+| T8.md | Tests | landed (`a247cfe`) |
 
 ---
 
 ## §7 Amendment subtasks
 
-*(None at plan version 1.0)*
+*(None at plan versions 1.0–1.1)*
 
 ---
 
 ## §8 Auditor handoff
 
-*(To be populated when plan is marked Complete.)*
+### §8.1 Completion snapshot
+
+- **Tree SHA:** `git rev-parse HEAD` on `dev` when this file shows **Version:** 1.1 · **Status:** Complete (closure commit; includes T1–T8 at `a247cfe` plus this §8)
+- **Implementation SHA:** `a247cfeedd76a74c9b27cb20cc03e171f283861e2` (T1–T8 code; pytest command below)
+- **Working tree:** clean at handoff
+- **Verification (clean checkout at `a247cfe`):**
+  - `pytest tests/unit/test_metrics.py tests/test_llm_telemetry.py tests/test_telemetry_store.py tests/test_middleware_telemetry.py tests/unit/test_graph_client.py -q` → **56 passed**, 38 warnings
+- **Exit code:** 0
+
+### §8.2 Artifact chain
+
+| Order | Path |
+|-------|------|
+| 1 | `.dev/plans/phase-3-observability/context-map.md` (scout SHA `ee870022`; closure SHA in §Post-execution) |
+| 2 | `.dev/plans/phase-3-observability/plan.md` (v1.1 + §8) |
+| 3 | `.dev/plans/phase-3-observability/packets/T{1..8}.md` |
+| 4 | `CHANGELOG.md` § phase-3-observability |
+| 5 | `aria/observability/metrics.py` |
+| 6 | `aria/llm/client.py` |
+| 7 | `api/middleware_telemetry.py` |
+| 8 | `aria/graph/client.py` |
+| 9 | `aria/ingestion/pipeline.py` |
+| 10 | `aria/observability/telemetry_store.py` |
+| 11 | `README.md`, `.env.example` (Ollama cost note) |
+| 12 | `tests/unit/test_metrics.py`, `tests/test_llm_telemetry.py`, `tests/test_telemetry_store.py`, `tests/test_middleware_telemetry.py`, `tests/unit/test_graph_client.py` |
+
+All paths must resolve via `git show HEAD:<path>` at the §8.1 closure SHA.
+
+### §8.3 §2 evidence (per-row)
+
+| §2 row | Landed artifact | Test / check |
+|--------|-----------------|--------------|
+| `HTTP_REQUEST_DURATION` | `aria/observability/metrics.py:105` | `TestPhase3MetricDefinitions`, `TestHTTPDurationHistogram`, `test_http_request_duration_histogram_observed` |
+| `GRAPH_QUERY_DURATION` | `aria/observability/metrics.py:112` | `TestPhase3MetricDefinitions`, `TestGraphQueryDurationHistogram`, `TestNeo4jClientGraphQueryDuration` |
+| `LLM_COST_COUNTER` | `aria/observability/metrics.py:119` | `TestPhase3MetricDefinitions`, `TestLLMCostCounter`, `test_complete_increments_llm_cost_counter_when_cost_present` |
+| `TelemetryStore.cost_by_request` | `aria/observability/telemetry_store.py:291` | `test_cost_by_request_*` in `tests/test_telemetry_store.py` |
+| G6 error envelope (`source="llm"`) | `aria/llm/client.py` (both `record_llm_call` sites) | `test_sqlite_write_failure_on_success_increments_error_counter_and_warns`, `test_sqlite_write_failure_on_error_path_increments_error_counter`; grep confirms zero `except Exception: pass` in file |
+| Naming (frozen metric names) | `metrics.py` `_name` / labelnames | `TestPhase3MetricDefinitions` |
+| Logging (G6 warning string) | `aria/llm/client.py` | G6 tests assert `logger.warning` with `type(exc).__name__` |
+| Tests policy (delta helpers, no new integration) | `tests/unit/test_metrics.py` `_counter_value`, `_histogram_count` | 56 passed in §8.1 command |
+| CLI surface | N/A | — |
+| Decision log paths | N/A (no architectural tier) | — |
+
+**Wire sites (G5 observe/increment):**
+
+| Site | Landed | Test |
+|------|--------|------|
+| HTTP middleware | `api/middleware_telemetry.py:62-65` (`latency_ms / 1000.0`) | `test_http_request_duration_histogram_observed` |
+| Graph client | `aria/graph/client.py` `execute_read` / `execute_write` | `TestNeo4jClientGraphQueryDuration` |
+| Ingestion pipeline | `aria/ingestion/pipeline.py:201` | `TestIngestionPipelineDuration` |
+| LLM cost on success | `aria/llm/client.py:283-284` | `TestLLMCostCounter`, `test_complete_increments_llm_cost_counter_when_cost_present` |
+| Ollama docs (T7) | `README.md:114`, `.env.example:23-25` | Manual read (no automated doc sync test) |
+
+### §8.4 §5 disposition
+
+| Item | Status | Notes |
+|------|--------|-------|
+| §5.2 #1 LLM `except` line numbers vs map SHA | **closed** | Grep-driven edit; both swallows replaced (`cbb884b`) |
+| §5.2 #2 `INGESTION_DURATION` labels still `["format"]` | **closed** | `TestIngestionPipelineDuration` uses `format=pdf` |
+| §5.2 #3 `query_name` read/write alignment | **closed** | Counter + histogram both use `"read"` / `"write"` |
+| §5.2 #4 `TelemetryStore._conn` / `_lock` | **closed** | `cost_by_request` shipped (`5a98ba9`) |
+| §5.2 #5 import-order registration | **closed** | Middleware + app startup import `HTTP_REQUEST_DURATION` |
+| §5.3 highest re-plan risk (T5 timer placement) | **closed** | Observe only on completion path; SKIPPED_DUPLICATE test passes |
+| §5.4 #1 `source="llm"` label consistency | **closed** | T8 asserts `source="llm"`; no enum enforcement in Prometheus |
+| §5.4 #2 `INGESTION_DURATION` shared with `ingest.py` | **closed** | `ingest.py` out of scope; no concurrent edit |
+| §5.4 #3 T8 TestClient vs `_SKIP_PATHS` | **closed** | `test_skipped_paths_do_not_observe_http_duration_histogram` |
+| §5.4 #4 float `Counter.inc(cost)` | **closed** | `TestLLMCostCounter` increments by fractional cost |
+| MVP_PICKUP G5/G6 checkboxes | **open** | `.dev/MVP_PICKUP.md` §189–195 still unchecked; sync deferred (Phase 5 hygiene) |
+| CHANGELOG mixed null/non-null `cost_by_request` gap | **open** | Documented in CHANGELOG T8; no explicit test (acceptable deferral) |
+| T8 shipped extra test file `test_graph_client.py` | **treat-as-prediction** | Plan §4 T8 listed only three files; landed split graph histogram tests into dedicated file — auditor verify coverage equivalence |
+
+### §8.5 Cold-read seeds
+
+1. `aria/observability/metrics.py` (frozen §2 definitions)
+2. `aria/llm/client.py` (`complete` success + final-retry paths)
+3. `api/middleware_telemetry.py` (`TelemetryMiddleware.dispatch`)
+4. `aria/ingestion/pipeline.py` (`ingest_document` completion observe)
+5. `tests/unit/test_metrics.py` (`TestPhase3MetricDefinitions`, `TestIngestionPipelineDuration`)
+6. `tests/test_llm_telemetry.py` (G6 + cost counter)
