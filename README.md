@@ -101,7 +101,7 @@ After `pip install -e .`, the **`aria`** console script is available. It loads `
 | **Language** | Python ≥ 3.11 (CI matrix: 3.12 / 3.13) |
 | **Graph DB** | Neo4j 5 (community, APOC plugin) |
 | **Vector store** | ChromaDB |
-| **LLM** | LiteLLM abstraction (local-first via Ollama) |
+| **LLM** | LiteLLM abstraction (default **gpt-4o-mini** + `OPENAI_API_KEY`; optional Ollama via `ollama/` model id) |
 | **Orchestration** | Custom stateful graph engine; optional LangGraph |
 | **Protocols** | MCP (tool access) · A2A (agent delegation) |
 | **API** | FastAPI + Uvicorn |

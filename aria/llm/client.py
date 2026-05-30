@@ -29,6 +29,35 @@ _PLACEHOLDER_API_KEYS = frozenset(
     {"", "not-needed", "not-needed-for-ollama"},
 )
 
+_DEFAULT_LLM_MODEL = "gpt-4o-mini"
+_DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
+_DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
+
+
+def resolve_llm_model() -> str:
+    """Model id for LiteLLM (env ``LLM_MODEL``, default OpenAI gpt-4o-mini)."""
+    return (os.getenv("LLM_MODEL") or _DEFAULT_LLM_MODEL).strip()
+
+
+def resolve_llm_base_url(model: str | None = None) -> str:
+    """API base URL (env ``LLM_BASE_URL``, else OpenAI or Ollama from model heuristic)."""
+    raw = os.getenv("LLM_BASE_URL")
+    if raw is not None and raw.strip():
+        return raw.strip()
+    m = model or resolve_llm_model()
+    if _looks_like_local_llm(m, _DEFAULT_OLLAMA_BASE_URL):
+        return _DEFAULT_OLLAMA_BASE_URL
+    return _DEFAULT_OPENAI_BASE_URL
+
+
+def resolve_llm_api_key() -> str:
+    """Provider key: ``LLM_API_KEY``, then Windows/shell ``OPENAI_API_KEY``, else placeholder."""
+    for name in ("LLM_API_KEY", "OPENAI_API_KEY"):
+        val = os.getenv(name)
+        if val is not None and val.strip() and val.strip().lower() not in _PLACEHOLDER_API_KEYS:
+            return val.strip()
+    return "not-needed"
+
 _FENCE_MAX_LAYERS = 5
 _JSON_BRACE_PAIRS = {"{": "}", "[": "]"}
 _JSON_CLOSERS = frozenset("}]")
@@ -177,9 +206,9 @@ class LLMClient:
         max_retries: int = 3,
         timeout: float = 120.0,
     ) -> None:
-        self.model = model or os.getenv("LLM_MODEL") or "ollama/llama3.2"
-        self.base_url = base_url or os.getenv("LLM_BASE_URL") or "http://localhost:11434"
-        self.api_key = api_key or os.getenv("LLM_API_KEY") or "not-needed"
+        self.model = model or resolve_llm_model()
+        self.base_url = base_url or resolve_llm_base_url(self.model)
+        self.api_key = api_key or resolve_llm_api_key()
         self.max_retries = max_retries
         self.timeout = timeout
         _require_non_placeholder_api_key(self.model, self.base_url, self.api_key)
