@@ -1,7 +1,7 @@
 # Plan — mvp-phase1-golden-wet-run
 
 **Plan version:** 1.1  
-**Status:** Active — audit remediation pending (T7–T8)  
+**Status:** Complete  
 **Produced by:** orchestrator-planning v0.6  
 **Plan date:** 2026-05-25  
 **Packets:** `.dev/plans/mvp-phase1-golden-wet-run/packets/T{1..8}.md`  
@@ -403,7 +403,82 @@ Each packet is self-contained (§1 verbatim, §2 verbatim, subtask block verbati
 
 ## §8 Auditor handoff
 
-*Populated by T8 upon plan closure. Draft evidence below reflects audit-time HEAD `d448a310`; T8 executor must re-run §8.1 on clean checkout at closure SHA.*
+### §8.1 Completion snapshot
+
+- **Tree SHA:** `5df123f261c14b0ae1baaa51e255a128b0d5ae5d` (T7 HEAD; verified clean — T8 closure is documentation-only on identical code)
+- **Verification (clean checkout):**
+  - `pytest tests/integration -m integration -q` → **25 passed**
+  - `pytest tests/unit/test_serve.py tests/unit/test_ingest_command.py tests/unit/test_status.py -q` → **11 passed**
+- **Exit code:** 0
+
+### §8.2 Artifact chain
+
+| Order | Path |
+|-------|------|
+| 1 | `.dev/plans/mvp-phase1-golden-wet-run/context-map.md` (scout SHA `ee870022`; closure SHA in §8.1 — see *Post-execution* staleness note) |
+| 2 | `.dev/plans/mvp-phase1-golden-wet-run/plan.md` (v1.1) |
+| 3 | `.dev/plans/mvp-phase1-golden-wet-run/packets/T{1..8}.md` |
+| 4 | `.dev/decision-logs/T6-wet-run.md` |
+| 5 | `.dev/audits/2026-05-30-mvp-phase1-golden-wet-run.md` |
+| 6 | `.dev/MVP_PICKUP.md` (wet run log L249–316) |
+| 7 | `CHANGELOG.md` § mvp-phase1-golden-wet-run |
+
+### §8.3 §2 evidence (per-row)
+
+| §2 row | Landed artifact | Test / check |
+|--------|-----------------|--------------|
+| sample_regulation.html | `tests/fixtures/sample_regulation.html` | T6 wet run ingest exit 0 |
+| integration marker | `tests/integration/test_*.py`, `pyproject.toml` | `pytest tests/integration -m integration` 25 passed |
+| serve --port default | `aria/cli/commands/serve.py` | `tests/unit/test_serve.py` |
+| regulation_ids stdout | `aria/cli/commands/ingest.py` | `tests/unit/test_ingest_command.py` |
+| status LLM note | `aria/cli/commands/status.py` | `tests/unit/test_status.py` |
+
+**§2 Amendment rows (*Landed:* — T7):**
+
+| §2 Amendment row | Landed artifact | Test / check |
+|------------------|-----------------|--------------|
+| `aria serve` port default + `API_PORT` | `tests/unit/test_serve.py` | 4 passed |
+| `aria ingest` regulation ID stdout + `_fetch_regulation_ids` | `tests/unit/test_ingest_command.py` | 5 passed |
+| `aria status` ingest/LLM note | `tests/unit/test_status.py` | 2 passed |
+| `aria status` footer note (Logging) | `aria/cli/commands/status.py` | literal matches §2 Amendment |
+| `aria ingest` regulation_ids none branch (Logging) | `aria/cli/commands/ingest.py` | literal matches §2 Amendment |
+| `aria ingest` regulation ID line (Types) | `aria/cli/commands/ingest.py` | `tests/unit/test_ingest_command.py` |
+
+### §8.4 §5 disposition
+
+| Item | Status | Notes |
+|------|--------|-------|
+| §5.2 integration marker CI exclusion | **closed** | T2 changelog CI note; 25 tests pass |
+| §5.2 html_parser generic HTML | **closed** | T1 sample + T6 ingest |
+| §5.2 Neo4jClient.execute_read | **closed** | `test_fetch_regulation_ids_*` |
+| §5.2 entity extractor Regulation.id | **closed** | Wet run printed `reg-gdpr`; audit ruled out key mismatch |
+| §5.2 LLM reachable during wet run | **closed** | OpenAI fallback documented in T6 log |
+| §5.2 Typer serve port env default | **closed** | Pattern B + `test_serve.py` |
+| §5.4 Chroma/serve port collision | **closed** | T3 default 8080 |
+| §5.4 pytest not integration CI | **closed** | Changelog flagged |
+| §5.4 Regulation id key suspected | **closed** | Audit disproven |
+| §5.4 seed_corpus bypass | **closed** | T6 avoided |
+| §5.4 scratch import collection | **closed** | 25 collected |
+| F-01 context map stale | **closed** | T8 context-map refresh (*Post-execution* section) |
+| F-08 wet-run replay | **open** | Deferred non-goal; non-blocking |
+
+### §8.5 Cold-read seeds
+
+1. `aria/cli/commands/ingest.py`
+2. `aria/cli/commands/serve.py`
+3. `aria/cli/commands/status.py`
+4. `tests/unit/test_ingest_command.py`
+5. `.dev/MVP_PICKUP.md` (wet run log)
+6. `.dev/decision-logs/T6-wet-run.md`
+
+### §8.6 Audit remediation cross-link
+
+| Audit finding | Remediation | §2 *Landed:* |
+|---------------|-------------|--------------|
+| F-02, F-03 | T7 — unit test files in §2 Amendment Tests | Tests table |
+| F-04, F-05, F-06 | T7 — stdout literals + ingest test row | Logging + Types tables |
+| F-07 | T8 — §8 populated, Status Complete | §8.1–§8.6 |
+| F-01 | T8 — context map refresh | §8.2 item 1 staleness note |
 
 ---
 

@@ -335,3 +335,30 @@ Disproven by: undiscovered `integration` mark under `tests/integration/`; grep f
 - **Phase 0 dependency:** Phase 1 script assumes Ollama or `LLM_*` cloud env; `probe_llm_reachable` uses `litellm.acompletion` with 12s timeout — LLM timeout is a first-class wet-run failure mode (G1-style empty retrieval is downstream).
 - **nightly.yml reference:** `.github/workflows/nightly.yml` sets `ARIA_PLACEHOLDER_API: "false"` for live E2E — useful parity target for Phase 1 env, out of scope to edit in this exploration.
 - **Working tree:** clean at exploration time; no dirty in-scope files.
+
+---
+
+## §Post-execution (T8 refresh — F-01)
+
+**Scout SHA (§0 / header above):** `ee87002297a495389b9bc79a510966dd30ab23f7`  
+**Closure SHA (plan §8.1):** `5df123f261c14b0ae1baaa51e255a128b0d5ae5d` (T7 HEAD — code verified; T8 adds documentation only)  
+**Refresh date:** 2026-05-30
+
+**Staleness note:** This map was generated at scout SHA `ee870022` before T1–T6 execution. Paths in §File map and §Interface inventory below reflect **pre-execution** predictions. After T1–T6, these in-scope paths changed materially; do **not** treat scout `test_file: none_found` or Flag resolutions as authoritative without cross-checking HEAD:
+
+| path | post-T1–T6 delta |
+|------|------------------|
+| `aria/cli/commands/ingest.py` | T4 — `_fetch_regulation_ids`, regulation_ids stdout |
+| `aria/cli/commands/serve.py` | T3 — default port 8080, `API_PORT` Pattern B |
+| `aria/cli/commands/status.py` | T5 — ingest/LLM footer note |
+| `tests/fixtures/sample_regulation.html` | T1 — created (frozen wet-run anchor) |
+| `tests/integration/test_end_to_end.py` | T2 — `@pytest.mark.integration` on all classes |
+| `tests/integration/test_ingestion_pipeline.py` | T2 — `@pytest.mark.integration` on all classes |
+| `pyproject.toml` | T2 — integration marker description updated |
+| `tests/unit/test_serve.py` | T3 — 4 tests (§2 Amendment) |
+| `tests/unit/test_ingest_command.py` | T4 — 5 tests (§2 Amendment) |
+| `tests/unit/test_status.py` | T5 — 2 tests (§2 Amendment) |
+
+**Flag IDs 1–5 (§Ambiguity flags):** Resolution status unchanged from orchestrator plan — all **resolved** by T1–T5 + T6 wet run. Historical flag text is retained above for audit traceability; see plan §8.4 for disposition.
+
+**Flag 6 (CLI live-path coverage):** Still **deferred** (plan non-goal); partially mitigated by T3–T5 unit tests per §2 Amendment.
