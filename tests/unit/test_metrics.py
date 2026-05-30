@@ -17,10 +17,13 @@ from aria.observability.metrics import (
     AGENT_EXECUTION_COUNTER,
     AGENT_EXECUTION_DURATION,
     GRAPH_QUERY_COUNTER,
+    GRAPH_QUERY_DURATION,
+    HTTP_REQUEST_DURATION,
     INGESTION_COUNTER,
     INGESTION_DURATION,
     LLM_CALL_COUNTER,
     LLM_CALL_DURATION,
+    LLM_COST_COUNTER,
     MCP_TOOL_CALL_COUNTER,
     MCP_TOOL_CALL_DURATION,
     RETRIEVAL_COUNTER,
@@ -75,6 +78,56 @@ class TestIngestionMetrics:
 
         assert _counter_value(INGESTION_COUNTER, status="success") == before_success
         assert _counter_value(INGESTION_COUNTER, status="error") == before_error
+
+
+# ── Phase 3 metric definitions (T1) ───────────────────────────────
+
+
+class TestPhase3MetricDefinitions:
+    """Contract checks for HTTP_REQUEST_DURATION, GRAPH_QUERY_DURATION, LLM_COST_COUNTER."""
+
+    def test_http_request_duration_contract(self):
+        assert HTTP_REQUEST_DURATION._name == "aria_http_request_duration_seconds"
+        assert HTTP_REQUEST_DURATION._labelnames == ("method", "status_code")
+        assert list(HTTP_REQUEST_DURATION._upper_bounds) == [
+            0.005,
+            0.01,
+            0.025,
+            0.05,
+            0.1,
+            0.25,
+            0.5,
+            1.0,
+            2.5,
+            5.0,
+            float("inf"),
+        ]
+
+    def test_graph_query_duration_contract(self):
+        assert GRAPH_QUERY_DURATION._name == "aria_graph_query_duration_seconds"
+        assert GRAPH_QUERY_DURATION._labelnames == ("query_name",)
+        assert list(GRAPH_QUERY_DURATION._upper_bounds) == [
+            0.001,
+            0.005,
+            0.01,
+            0.025,
+            0.05,
+            0.1,
+            0.25,
+            0.5,
+            1.0,
+            float("inf"),
+        ]
+
+    def test_llm_cost_counter_contract(self):
+        assert LLM_COST_COUNTER._name == "aria_llm_cost_usd"
+        assert LLM_COST_COUNTER._labelnames == ("model",)
+
+    def test_phase3_metrics_registered_in_registry(self):
+        names = set(REGISTRY._names_to_collectors)
+        assert "aria_http_request_duration_seconds" in names
+        assert "aria_graph_query_duration_seconds" in names
+        assert "aria_llm_cost_usd_total" in names
 
 
 # ── Agent execution metrics ────────────────────────────────────────

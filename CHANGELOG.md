@@ -2,6 +2,10 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## phase-3-observability — 2026-05-30
+
+- T1 (Phase 3 Prometheus metric definitions): Added `HTTP_REQUEST_DURATION`, `GRAPH_QUERY_DURATION`, and `LLM_COST_COUNTER` to `aria/observability/metrics.py` per frozen §2 contract. Rationale: downstream T2–T5 wire observe/increment calls against these symbols; defining them first avoids registration collisions. + added contract tests in `tests/unit/test_metrics.py` (`TestPhase3MetricDefinitions`).
+
 ## phase-2-eval-honesty — 2026-05-30
 
 - T6 (Plan v1.2 contract reconciliation): §2 Amendment records shipped replay test name (`test_run_replay_check_passes_with_inline_fixture`) and CI gate for `test_runner_unit.py`; see audit F-04. Rationale: closes contract drift between original §2 Typed-surface bullet and landed T2 symbol without renaming tests. **Coverage gap (deferred):** no automated check that plan §2 Amendment rows stay aligned with `test_runner_unit.py` def names after future edits.
