@@ -249,22 +249,70 @@ pytest tests/eval/test_api_contracts.py tests/eval/test_security_audit.py -q
 ## Wet run log (fill on first live session)
 
 ```text
-Date:
-Environment: (OS, Python, LLM model, Neo4j/Chroma versions)
-ARIA_PLACEHOLDER_API=
+Date: 2026-05-30 (T6 golden-path session)
 
-aria status →
-aria init →
-aria ingest →
-aria query →
-aria impact →
-aria telemetry →
+Environment:
+  OS: Windows 10 (10.0.19045)
+  Python: 3.14.2
+  Docker: 29.1.3
+  Neo4j: neo4j:5.26.2-community (docker compose; healthy)
+  Chroma: chromadb/chroma:1.5.6 (docker compose; compose healthcheck reports unhealthy,
+          but GET http://localhost:8000/api/v2/heartbeat returns 200 — usable)
+  LLM (live path): gpt-4o-mini via https://api.openai.com/v1
+    (Ollama on localhost:11434 present but .env.example model ollama/llama3.2 not installed;
+     cold-start probes exceeded 12s timeout on local models — see decision log)
+
+ARIA_PLACEHOLDER_API=false (confirmed for all live CLI/API steps below)
+
+docker compose up -d neo4j chromadb → exit 0 (~27s pull/start; neo4j healthy ≤60s;
+  chroma remained "unhealthy" in `docker compose ps` while v2 heartbeat OK)
+
+aria status → exit 0
+  neo4j ok | chroma ok | llm ok (with LLM_MODEL=gpt-4o-mini, LLM_BASE_URL=https://api.openai.com/v1)
+  T5 note present: "aria ingest additionally requires LLM. aria status exits 0 even when LLM is unavailable."
+
+aria init → exit 0
+
+aria ingest tests/fixtures/sample_regulation.html → exit 0
+  graph_written: true | vector_indexed: true
+  regulation_ids: reg-gdpr, reg-eu-ai-act, article-1-subject-matter-and-scope
+  (Neo4j warning: IngestionRecord.pipeline_complete property missing on first dedup query)
+
+aria query "What are the data minimization requirements?" → exit 0
+  Live answer + 1 source chunk (score ~0.27); notes GDPR minimization not explicit in chunk text
+
+aria impact reg-gdpr → exit 0
+  Mode: live | Requirements: 0 (no AFFECTS/ADDRESSED_BY edges in graph from ingest-only path;
+  Neo4j warnings for missing relationship types)
+
+aria telemetry --hours 1 → exit 0 (JSON summary; 2 LLM calls logged)
+
+aria serve --port 8080 (optional) + curl http://127.0.0.1:8080/ready → HTTP 200
+  {"status":"ready","neo4j":true,"chroma":true,"llm":true}
+
+Preflight vs readiness assertion (LLM unreachable):
+  aria ingest (LLM_MODEL=ollama/nonexistent-model-xyz) → exit 1
+    missing: llm: ... model 'nonexistent-model-xyz' not found
+  aria status (same LLM env) → exit 0, llm fail
+  aria serve --host 127.0.0.1 --port 8080 + curl /ready → HTTP 200
+    {"status":"ready","neo4j":true,"chroma":true,"llm":false,"errors":{"llm":"..."}}
+
+pytest tests/integration -m integration → 25 passed (1.56s)
+  Note: run with ARIA_PLACEHOLDER_API=true (default for mocked TestClient suite);
+  accidental ARIA_PLACEHOLDER_API=false during pytest caused 2 failures on X-ARIA-Mode assertions.
 
 Failures / surprises:
+  - Chroma docker healthcheck false negative (curl missing or v1 vs v2 in compose health test).
+  - .env.example LLM model (ollama/llama3.2) not in local Ollama; cloud OpenAI used for live path.
+  - aria impact returns 0 requirements after successful ingest (graph lacks impact-chain edges).
+  - First integration pytest run failed when shell still had ARIA_PLACEHOLDER_API=false from live steps.
 
-Fixes applied (commit refs):
+Fixes applied (commit refs): no code fixes required this session (documentation only).
 
-Sign-off (MVP golden path OK? Y/N):
+Sign-off (MVP golden path OK? Y/N): Y
+  All Phase 1 CLI steps exit 0 on live stack; ingest preflight strictly requires LLM;
+  /ready returns 200 with llm:false when LLM probe fails. Caveats: impact chain not populated
+  from sample ingest alone; operator should set LLM_* explicitly for cloud vs Ollama.
 ```
 
 ---
