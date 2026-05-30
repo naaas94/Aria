@@ -34,6 +34,10 @@ class ComplianceQueryRequest(BaseModel):
         default=True, description="Whether to use GraphRAG (hybrid) or vector-only retrieval"
     )
     top_k: int = Field(default=10, ge=1, le=50)
+    orchestrated: bool = Field(
+        default=False,
+        description="Route through orchestration graph instead of run_compliance_query",
+    )
 
     @field_validator("regulation_id", mode="before")
     @classmethod
@@ -48,6 +52,7 @@ class ComplianceQueryResponse(BaseModel):
     sources: list[dict[str, Any]] = []
     retrieval_strategy: str = "graphrag"
     trace: dict[str, Any] = {}
+    execution_trace: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

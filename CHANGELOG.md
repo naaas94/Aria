@@ -2,6 +2,10 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## mvp-phase6-mvp-plus — 2026-05-30
+
+- T1 (orchestrated query DTO contracts): Added `orchestrated: bool = False` on `ComplianceQueryRequest` and `execution_trace: dict[str, Any] | None = None` on `ComplianceQueryResponse` in `aria/services/compliance_query.py`; `extra="forbid"` unchanged. Rationale: backward-compatible typed surface for Phase 6 routing and trace payload before T4 wires CLI/API. **Coverage gap (deferred):** no unit test asserts the new fields round-trip on request/response models — T4 owns end-to-end smoke per packet §2 Tests policy.
+
 ## — 2026-05-30
 
 - T4 (AUDIT_DIGEST open table sync): Synced `.dev/AUDIT_DIGEST.md` after phase-2-eval-honesty and phase-3-observability Complete. Moved **#2**, **#8**, **#18** to fixed (Phase 2 citations); updated **#10** resolution for Phase 3 G6; added Phase 3 fixed rows **G5**, **G6**, **L1**, **L7**. Left open **#9**, **#16** (product), **#19**, **#20** (no Phase 2 artifact). Rationale: closes MVP_PICKUP Phase 5 AUDIT sync without false-green on uncited rows. **Coverage gap (deferred):** no automated check that open-table rows stay aligned with CHANGELOG after future phases (plan Flag 6 deferred).
