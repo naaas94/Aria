@@ -8,6 +8,8 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 - T1 (path_to_release §1 supersession banner): Added supersession blockquote after `## 1. CLI — does not exist` and struck "No CLI exists" in the Executive Summary with a cross-reference to `CHANGELOG.md` `## 2026_04_11`. Rationale: CLI has been implemented since 2026_04_11; wet-run risks 1–5 preserved for historical context. **Coverage gap (deferred):** no automated doc-drift test asserts banner presence if §1 is edited again (plan Flag 6 deferred).
 
+- T3 (Architecture folder approval acknowledgment): Bumped `.dev/architecture/aria/INDEX.md` Last verified to 2026-05-25 and appended `[APPROVAL]` entry to `.dev/architecture/aria/changelog.md`. Closes MVP G10 (architecture folder commit/approve). **Coverage gap (deferred):** docs-only subtask; no automated check that approval date stays aligned with owner review cadence (kill criteria verified by `git ls-files` and `git diff` on folder).
+
 ## mvp-phase4-product-defaults-ux — 2026-05-30
 
 - T1 (G8 placeholder default flip, T1-amend): Changed `placeholder_api_enabled()` default from `"true"` to `"false"` in `api/config.py`; aligned OpenAPI description (`api/main.py`), `.env.example`, E2E docstring, MVP_PICKUP G8 checklist, and architecture open-questions Q3; set `ARIA_PLACEHOLDER_API=true` on `tests/unit/test_metrics.py` `client` fixture so ASGI metrics tests stay backend-independent after the flip. Rationale: live mode as baseline makes missing backends explicit instead of silent synthetic responses. See `.dev/decision-logs/T1-g8-placeholder-default.md`. **Coverage gap (deferred):** no unit test asserts `placeholder_api_enabled()` when env is unset (T4 CLI smoke forces placeholder via `env=` only).

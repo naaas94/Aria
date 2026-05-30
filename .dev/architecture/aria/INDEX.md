@@ -5,7 +5,7 @@ Key frameworks:   FastAPI, Pydantic v2, Neo4j, ChromaDB, LiteLLM, Typer, structl
 Repository:       c:\Users\Ale\Documents\Repos\Aria
 Document version: 1.1.0
 Last constructed: 2026-05-24
-Last verified:    2026-05-24
+Last verified:    2026-05-25
 Staleness window: 30 days
 Stale after:      2026-06-23
 

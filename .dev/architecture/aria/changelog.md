@@ -5,3 +5,4 @@
 [MINOR] open-questions.md 1.1.0 — 2026-05-24 — Refined six questions with code evidence; resolved query-path fork; added scratch/MCP production wiring question. Trigger: open question resolved (partial).
 [PATCH] module-map.md 1.0.1 — 2026-05-24 — Stability notes: scratch/MCP/A2A production wiring experimental; langgraph/scripts confirmed experimental. Trigger: new module / user confirmation.
 [PATCH] dependency-graph.md 1.0.1 — 2026-05-24 — pydantic-settings marked unused; CLI→api coupling; production vs test orchestration paths. Trigger: new external dependency / user confirmation.
+[APPROVAL] 2026-05-25 — Owner reviewed and acknowledged all 11 section files as SSOT for orchestrator/auditor/pre-plan consumption. No content changes; approval recorded for MVP G10 closure. All files tracked on dev at ee87002297a495389b9bc79a510966dd30ab23f7.
