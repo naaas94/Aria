@@ -1,7 +1,7 @@
 # Plan — phase-2-eval-honesty
 
 **Version:** 1.2  
-**Status:** Complete (amendment pending — audit fail F-01, F-03)  
+**Status:** Complete  
 **Orchestrator skill:** orchestrator-planning v0.6  
 **Packets:** `.dev/plans/phase-2-eval-honesty/packets/`
 
@@ -356,3 +356,81 @@ graph TD
 | **Tests — replay round-trip symbol** | Shipped name: `test_run_replay_check_passes_with_inline_fixture` in `tests/eval/golden_set/test_runner_unit.py` (supersedes original §2 Typed-surface reference to `test_run_replay_check_with_fixture`). Golden slow tier still provides on-disk `eval-replay-gdpr-erasure.json` E2E round-trip. |
 | **Tests — CI gate for runner unit file** | PR CI: `.github/workflows/ci.yml` `Golden set (fast tier)` step runs `pytest tests/eval/golden_set/test_runner_unit.py` (owned by T5). Verification: inspect workflow at HEAD; local `pytest tests/eval/golden_set/test_runner_unit.py -q` → all pass. |
 | **Tests — deferred (unchanged)** | F-05 committed-fixture unit load without mock; F-06 golden negative for wrong `retrieved_context` — remain deferred per audit §14. |
+
+---
+
+## §8 Auditor handoff
+
+### §8.1 Completion snapshot
+
+- **Tree SHA:** `26b05116b7fc01fc422706c40a5eb32722a24383`
+- **Working tree:** clean at closure commit (plan §8 and audit committed at this SHA; unrelated `uv.lock` churn excluded per amendment non-goals)
+- **Verification (clean checkout at closure SHA):**
+  - `pytest tests/eval/golden_set/test_runner_unit.py -q` → **5 passed**
+  - `pytest tests/eval/golden_set/test_goldens.py --golden-tier=slow -q` → **33 passed**
+- **Exit code:** 0
+
+### §8.2 Artifact chain
+
+| Order | Path |
+|-------|------|
+| 1 | `.dev/plans/phase-2-eval-honesty/context-map.md` (scout SHA `ee870022`; closure SHA in *Post-execution*) |
+| 2 | `.dev/plans/phase-2-eval-honesty/plan.md` (v1.2 + §8 + amendment) |
+| 3 | `.dev/plans/phase-2-eval-honesty/packets/T{1..4}.md` |
+| 4 | `.dev/decision-logs/T2-requires-multi-hop.md` |
+| 5 | `.dev/audits/2026-05-30-phase-2-eval-honesty.md` |
+| 6 | `CHANGELOG.md` § phase-2-eval-honesty |
+| 7 | `tests/eval/golden_set/test_runner_unit.py` |
+| 8 | `tests/eval/golden_set/replay/eval-replay-gdpr-erasure.json` |
+| 9 | `tests/eval/golden_set/cases/retrieval/q{1..6}_*.yaml` |
+| 10 | `.github/workflows/ci.yml` (golden-set step) |
+
+### §8.3 §2 evidence (per-row)
+
+| §2 row | Landed artifact | Test / check |
+|--------|-----------------|--------------|
+| `requires_multi_hop` declarative only | `schema.py`, `runner.py` (stub removed) | `test_run_retrieval_check_requires_multi_hop_does_not_affect_outcome` |
+| `ReplayFixture` + `load_replay_fixture` | `eval-replay-gdpr-erasure.json` | `test_goldens.py --golden-tier=slow` (q6 replay) |
+| Replay unit symbol | `test_run_replay_check_passes_with_inline_fixture` | `test_runner_unit.py` |
+| CI gate for runner unit file | `.github/workflows/ci.yml` | `pytest tests/eval/golden_set/test_runner_unit.py` in PR golden step |
+| Medium retrieval honesty (Option A) | q1–q5 `retrieved_context` | `--golden-tier=medium` (5 retrieval pass) |
+| Decision log path | `.dev/decision-logs/T2-requires-multi-hop.md` | present at HEAD |
+
+**§2 Amendment rows (*Landed:* — T6):**
+
+| §2 Amendment row | Landed artifact | Test / check |
+|------------------|-----------------|--------------|
+| Replay round-trip symbol | `test_run_replay_check_passes_with_inline_fixture` | 5 passed in `test_runner_unit.py` |
+| CI gate for runner unit file | `ci.yml` golden step line 44 | local + PR workflow |
+
+### §8.4 §5 / audit disposition
+
+| Item | Status | Notes |
+|------|--------|-------|
+| F-01 plan §8 not at `HEAD` | **closed** | T7 — plan v1.2 + §8 committed at closure SHA |
+| F-02 context map stale | **closed** | T7 — *Post-execution* section with closure SHA |
+| F-03 `test_runner_unit.py` not in CI | **closed** | T5 — `ci.yml` golden step |
+| F-04 §2 replay test name drift | **closed** | T6 — §2 Amendment *Landed:* row |
+| F-05 committed-fixture unit without mock | **open** | Deferred per audit §14 |
+| F-06 golden negative wrong `retrieved_context` | **open** | Deferred per CHANGELOG T1 |
+| F-07 §8.1 false clean-tree claim | **closed** | T7 — wording in §8.1 |
+| F-08 MVP_PICKUP / AUDIT_DIGEST sync | **open** | Phase 5 non-goal |
+| §5.2 graphrag keyword coupling (Surface 1) | **closed** | T1 YAML-only; no `DEFAULT_COMPONENT_KEYWORDS` edit |
+| §5.4 manifest ↔ q6 sync (Surface 3) | **closed** | `test_manifest_coverage` |
+
+### §8.5 Cold-read seeds
+
+1. `tests/eval/golden_set/runner.py` (`run_retrieval_check`, `run_replay_check`)
+2. `tests/eval/golden_set/test_runner_unit.py`
+3. `tests/eval/golden_set/replay/eval-replay-gdpr-erasure.json`
+4. `.github/workflows/ci.yml` (golden-set step)
+5. `.dev/audits/2026-05-30-phase-2-eval-honesty.md`
+
+### §8.6 Audit remediation cross-link
+
+| Audit finding | Remediation | Evidence |
+|---------------|-------------|----------|
+| F-01 | T7 — commit plan v1.2 + §8 at HEAD | `git show HEAD:.dev/plans/phase-2-eval-honesty/plan.md` |
+| F-03 | T5 — CI runs `test_runner_unit.py` | `ci.yml` golden step |
+| F-04 | T6 — §2 Amendment test name | plan v1.2 §2 Amendment |
+| F-07 | T7 — §8.1 wording fix | §8.1 |

@@ -276,3 +276,11 @@ Disproven by: adding a recording entrypoint (script, e2e hook, or documented man
 - **Implicit contract:** `test_goldens._CASES` loads at import time — new YAML files are picked up without code change; manifest must stay in sync.
 - **Out of scope but verification:** Phase 2 exit criterion includes local/nightly `pytest tests/eval/golden_set/test_goldens.py --golden-tier=slow` green.
 - **`.dev/plans/_pending/`:** no overlapping context map found before this run.
+
+---
+
+## §Post-execution (T7 closure — 2026-05-30)
+
+- **Closure SHA:** `26b05116b7fc01fc422706c40a5eb32722a24383`
+- **Scout SHA:** `ee87002297a495389b9bc79a510966dd30ab23f7` (unchanged in plan §0 / map header)
+- **Note:** All §File map `direct` rows were touched by T1–T4 (synthetic `retrieved_context`, stub removal, CI label, slow replay case + fixture + manifest). Scout predictions (empty context, no replay JSON, `multi_hop_declared` stub, CI “includes replay”) are **stale-qualified** — verify outcomes against code at closure SHA, not scout file contents.
