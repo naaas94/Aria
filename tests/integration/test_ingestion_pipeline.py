@@ -47,6 +47,7 @@ def _clean_state():
     reset_ingestion_state()
 
 
+@pytest.mark.integration
 class TestHTMLParsing:
     def test_parse_html_string(self):
         doc = parse_html(SAMPLE_HTML, is_file=False)
@@ -67,6 +68,7 @@ class TestHTMLParsing:
         assert doc1.content_hash == doc2.content_hash
 
 
+@pytest.mark.integration
 class TestChunking:
     def test_basic_chunking(self):
         text = "This is a test sentence. " * 200
@@ -92,6 +94,7 @@ class TestChunking:
         assert all(c.metadata.get("source") == "test.pdf" for c in chunks)
 
 
+@pytest.mark.integration
 class TestIngestionPipeline:
     @pytest.mark.asyncio
     async def test_ingest_html_document(self, tmp_path: Path):
@@ -133,6 +136,7 @@ class TestIngestionPipeline:
         assert result.status == IngestionStatus.PARSE_ERROR
 
 
+@pytest.mark.integration
 class TestNeo4jIngestionDedup:
     """Durable idempotency hooks (mocked Neo4j client)."""
 
