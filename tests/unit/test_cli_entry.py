@@ -19,3 +19,20 @@ def test_query_help_lists_options() -> None:
     result = runner.invoke(app, ["query", "--help"])
     assert result.exit_code == 0
     assert "--regulation-id" in result.stdout or "-r" in result.stdout
+
+
+def test_query_json_placeholder_returns_valid_payload() -> None:
+    import json
+
+    result = runner.invoke(
+        app,
+        ["query", "test question", "--json"],
+        env={"ARIA_PLACEHOLDER_API": "true"},
+    )
+    assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}:\n{result.output}"
+    payload = json.loads(result.stdout)
+    assert "answer" in payload
+    assert "sources" in payload
+    assert "retrieval_strategy" in payload
+    assert "trace" in payload
+    assert payload["aria_mode"] == "placeholder"
