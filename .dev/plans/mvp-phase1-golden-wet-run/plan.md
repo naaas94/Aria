@@ -1,10 +1,10 @@
 # Plan — mvp-phase1-golden-wet-run
 
-**Plan version:** 1.0  
-**Status:** Active  
+**Plan version:** 1.1  
+**Status:** Active — audit remediation pending (T7–T8)  
 **Produced by:** orchestrator-planning v0.6  
 **Plan date:** 2026-05-25  
-**Packets:** `.dev/plans/mvp-phase1-golden-wet-run/packets/T{1..6}.md`  
+**Packets:** `.dev/plans/mvp-phase1-golden-wet-run/packets/T{1..8}.md`  
 **Decision log (T6):** `.dev/decision-logs/T6-wet-run.md`
 
 ---
@@ -363,10 +363,124 @@ Each packet is self-contained (§1 verbatim, §2 verbatim, subtask block verbati
 
 ## §7 Amendment subtasks
 
-*No amendments have fired. This section is reserved for post-execution audit findings that require narrowly-scoped fixes after the plan is marked Complete.*
+*Amendment v1.1 fired 2026-05-30 per audit `.dev/audits/2026-05-30-mvp-phase1-golden-wet-run.md` (verdict: **fail** on majors F-02, F-03, F-07). Original T1–T6 specs above are unchanged. Remediation subtasks below close audit majors and populate §8.*
+
+**Packet paths:** `.dev/plans/mvp-phase1-golden-wet-run/packets/T7.md`, `T8.md`
+
+---
+
+### T7 — Audit contract reconciliation (F-02, F-03, F-04, F-05, F-06)
+
+| Field | Content |
+|-------|---------|
+| **ID** | T7 |
+| **Scope** | Back-annotate shared contracts with *Landed:* deltas so shipped unit tests and stdout literals are binding without reverting beneficial coverage. Acknowledge T3/T5 test files in CHANGELOG. No code changes unless executor discovers shipped strings diverge from audit evidence at HEAD. |
+| **Files to touch** | `.dev/plans/mvp-phase1-golden-wet-run/plan.md` (append §2 Amendment — contract deltas only), `CHANGELOG.md` |
+| **Contract bindings** | §2 Amendment block (this section's *Landed:* rows). Tests: frozen unit file paths. Logging: frozen stdout literals. |
+| **Inputs** | T1–T6 complete; audit file `.dev/audits/2026-05-30-mvp-phase1-golden-wet-run.md` |
+| **Outputs** | (1) §2 Amendment — contract deltas appended to plan (see v1.1 block below). (2) CHANGELOG entry naming `tests/unit/test_serve.py` (T3) and `tests/unit/test_status.py` (T5) alongside existing T4 test note. (3) Changelog entry for v1.1 amendment. |
+| **Kill criteria** | (a) Halt if any of the three unit test files are absent at HEAD — report path and commit that removed them. (b) Halt if shipped stdout in `status.py` or `ingest.py` differs from audit-cited literals and reconciliation requires a code change touching > 1 file — escalate to orchestrator. (c) Halt if amendment edits any prose in §1–§6 above (only append §2 Amendment block and CHANGELOG). |
+| **Log tier** | standard |
+| **Risks & mitigations** | Narrative-only drift is low risk. Mitigation: copy literals from HEAD `status.py` L19–20 and `ingest.py` L108–110, not from original §2/T5 spec quotes. |
+
+---
+
+### T8 — Plan closure and §8 auditor handoff (F-07, F-01)
+
+| Field | Content |
+|-------|---------|
+| **ID** | T8 |
+| **Scope** | Mark plan **Complete**; populate §8 auditor handoff at closure SHA. Refresh context map at HEAD to close F-01 staleness. Commit audit artifact if untracked. |
+| **Files to touch** | `.dev/plans/mvp-phase1-golden-wet-run/plan.md` (Status → Complete; populate §8), `.dev/plans/mvp-phase1-golden-wet-run/context-map.md` (re-scout in-scope paths), `.dev/audits/2026-05-30-mvp-phase1-golden-wet-run.md` (commit if untracked) |
+| **Contract bindings** | §8 auditor handoff schema (orchestrator-planning v0.6 §8). Context map SHA must match closure SHA. |
+| **Inputs** | T7 (§2 Amendment block landed) |
+| **Outputs** | (1) Plan Status **Complete**. (2) §8.1–§8.6 populated (§8.6 present — links audit + T7 amendment). (3) Context map updated with HEAD SHA and post-execution file notes. (4) *Complete* banner in plan header. |
+| **Kill criteria** | (a) Halt if T7 §2 Amendment block is missing from plan. (b) Halt if §8.1 verification is run on a dirty working tree — stash or commit unrelated changes first, then run on clean checkout of closure SHA. (c) Halt if any §8.2 path fails `git show HEAD:<path>`. (d) Halt if context-map flag IDs 1–5 still describe pre-T1–T6 state without a staleness note. |
+| **Log tier** | standard |
+| **Risks & mitigations** | Closure SHA may differ from audit SHA `d448a310` if T7/T8 commits land. Mitigation: record actual closure SHA in §8.1, not the audit SHA. F-08 (wet-run replay automation) remains deferred — mark **open** in §8.4, non-blocking. |
 
 ---
 
 ## §8 Auditor handoff
 
-*Deferred. §8 is populated when the plan is marked **Complete** (all T1–T6 done, wet run log signed off, decision log committed). At that time: tree SHA, clean-checkout verification run, artifact chain, §2 evidence, §5 disposition, cold-read seeds, and audit remediation cross-link (if §7 fired) will be added.*
+*Populated by T8 upon plan closure. Draft evidence below reflects audit-time HEAD `d448a310`; T8 executor must re-run §8.1 on clean checkout at closure SHA.*
+
+---
+
+## Plan v1.1 — amendment extension (2026-05-30)
+
+**Audit consumed:** `.dev/audits/2026-05-30-mvp-phase1-golden-wet-run.md`  
+**Audit verdict:** fail — majors F-02, F-03, F-07 must close before merge-closure  
+**Non-goals (amendment):** Revert unit tests; implement wet-run replay script (F-08); invalid `API_PORT` error handling (deferred in changelog); Phase 2+ scope.
+
+### §3 Amendment dependency DAG
+
+```mermaid
+graph LR
+  T6[T6: Wet run complete]
+  T7[T7: Contract reconciliation]
+  T8[T8: Plan closure + §8 handoff]
+
+  T6 --> T7
+  T7 --> T8
+```
+
+**Sequential:** T7 then T8. No parallel group.
+
+### §2 Amendment — contract deltas (*Landed:* — T7)
+
+*These rows supersede conflicting prose in §2 above where noted. Do not edit original §2 rows.*
+
+#### Tests (*Landed:* — closes F-02, F-03)
+
+| Surface | Owner | Path | Verification |
+|---------|-------|------|--------------|
+| `aria serve` port default + `API_PORT` | T3 | `tests/unit/test_serve.py` | `pytest tests/unit/test_serve.py` — 4 tests |
+| `aria ingest` regulation ID stdout + `_fetch_regulation_ids` | T4 | `tests/unit/test_ingest_command.py` | `pytest tests/unit/test_ingest_command.py` — 5 tests |
+| `aria status` ingest/LLM note | T5 | `tests/unit/test_status.py` | `pytest tests/unit/test_status.py` — 2 tests |
+
+*Supersedes §2 Tests row "No new test files created by T1–T5." T6 may still add minimal smoke; these three files are T3–T5 contract anchors.*
+
+#### Logging (*Landed:* — closes F-04, F-05)
+
+| Surface | Owner | Binding literal |
+|---------|-------|-----------------|
+| `aria status` footer note | T5 | `"Note: aria ingest additionally requires LLM. aria status exits 0 even when LLM is unavailable."` |
+| `aria ingest` regulation_ids (none branch) | T4 | `"  regulation_ids: (none — Regulation nodes not found; use seed_graph.py IDs or check entity extractor)"` |
+| `aria ingest` regulation_ids (success branch) | T4 | `"  regulation_ids: <comma-separated>"` (unchanged) |
+
+*Supersedes T5 spec suggested text and §2 Logging/T4 `(none — Regulation nodes not found)` suffix-less form.*
+
+#### Types / interfaces (*Landed:* — closes F-06)
+
+| Surface | Owner | Typed path | Round-trip / construction test |
+|---------|-------|-----------|-------------------------------|
+| `aria ingest` stdout — regulation ID line | T4 | `aria/cli/commands/ingest.py` | `tests/unit/test_ingest_command.py` (replaces "No separate test; wet run observes live") |
+
+### §5 Amendment — adversarial disposition
+
+**Rejected decomposition:** Revert `tests/unit/test_{serve,ingest_command,status}.py` to satisfy original §2 prohibition. Rejected — tests pass (11/11), add meaningful signal; audit recommends amendment over revert.
+
+**Load-bearing assumption (T7):**
+```
+(Shipped stdout literals in status.py and ingest.py match audit evidence at HEAD |
+ §2 Amendment Logging rows |
+ T7 lands incorrect binding literals; re-audit fails on F-04/F-05 | T7, T8)
+```
+
+**Highest re-plan risk:** T8 — if unrelated dirty-tree changes block clean-checkout §8.1 verification.
+
+**Hidden coupling (T8):**
+```
+confirmed |
+(context-map.md SHA recorded at §0 diverges from closure SHA |
+ §8.2 artifact chain; §0 context map intake |
+ auditor treats scout predictions as authoritative without staleness note | T8)
+```
+
+### §6 Amendment packets
+
+| Packet | Path |
+|--------|------|
+| T7 | `.dev/plans/mvp-phase1-golden-wet-run/packets/T7.md` |
+| T8 | `.dev/plans/mvp-phase1-golden-wet-run/packets/T8.md` |
