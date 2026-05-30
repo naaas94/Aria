@@ -4,6 +4,8 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 ## phase-3-observability — 2026-05-30
 
+- T7 (Ollama cost documentation): Documented expected zero cost for local Ollama in `README.md` (Tech Stack) and `.env.example` (LLM block). Rationale: operators seeing `total_cost_usd: 0` in `GET /telemetry` should not treat it as a bug. **Coverage gap (deferred):** docs-only subtask; no automated check that README and `.env.example` stay in sync if cost semantics change (T8 excludes T7).
+
 - T6 (Per-request cost rollup): Added `TelemetryStore.cost_by_request(request_id)` — sums non-null `cost_usd` for matching `llm_calls` rows, returns `None` when no cost data (not `0.0`). Rationale: store-only helper for operator scripts without changing `/telemetry` JSON. + extended `tests/test_telemetry_store.py` (`test_cost_by_request_*`).
 
 - T4 (Graph query duration histogram wiring): `Neo4jClient.execute_read` and `execute_write` now observe `GRAPH_QUERY_DURATION` with `query_name` labels `read`/`write` after session release. Rationale: closes G5 graph latency gap so operators can correlate counter volume with query latency. + added `tests/unit/test_graph_client.py`.
