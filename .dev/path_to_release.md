@@ -8,11 +8,13 @@
 
 ## Executive summary
 
-ARIA has a solid architectural skeleton: multi-agent orchestration, GraphRAG retrieval, Pydantic contracts, tiered golden-set evaluation, Prometheus + SQLite telemetry, and CI/nightly pipelines. But the system has never been run end-to-end from the terminal as a user would. **No CLI exists.** The API works in placeholder mode but the live path (Neo4j + Chroma + LLM) has not been wet-run through a complete ingest→query→impact flow in one session. The gap between "code compiles and tests pass" and "a human can type a command and watch agents work" is the core blocker.
+ARIA has a solid architectural skeleton: multi-agent orchestration, GraphRAG retrieval, Pydantic contracts, tiered golden-set evaluation, Prometheus + SQLite telemetry, and CI/nightly pipelines. But the system has never been run end-to-end from the terminal as a user would. **~~No CLI exists~~ — see `CHANGELOG.md` `## 2026_04_11`; the `aria` CLI is implemented.** The API works in placeholder mode but the live path (Neo4j + Chroma + LLM) has not been wet-run through a complete ingest→query→impact flow in one session. The gap between "code compiles and tests pass" and "a human can type a command and watch agents work" is the core blocker.
 
 ---
 
 ## 1. CLI — does not exist
+
+> **Superseded (2026_04_11):** The `aria` CLI is implemented. See `CHANGELOG.md` `## 2026_04_11` for the full change record, and `README.md` `## CLI (\`aria\`)` for current command reference. The wet-run risks below remain informative historical context.
 
 ### What's missing
 

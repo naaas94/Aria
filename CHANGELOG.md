@@ -2,6 +2,12 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## phase-5-doc-architecture-hygiene — 2026-05-30
+
+- T2 (README production call graph): Added `**Production call graph:**` note at the end of `## Architecture` (verbatim three-line block from `architectural-patterns.md`) and appended an orchestration caveat that the scratch engine is not on the production request path. Rationale: the Architecture section previously implied scratch orchestration drives live `POST /query` / `aria query` traffic. **Coverage gap (deferred):** no automated check keeps README call-graph text in sync with `architectural-patterns.md` if either file changes (plan Flag 6 deferred).
+
+- T1 (path_to_release §1 supersession banner): Added supersession blockquote after `## 1. CLI — does not exist` and struck "No CLI exists" in the Executive Summary with a cross-reference to `CHANGELOG.md` `## 2026_04_11`. Rationale: CLI has been implemented since 2026_04_11; wet-run risks 1–5 preserved for historical context. **Coverage gap (deferred):** no automated doc-drift test asserts banner presence if §1 is edited again (plan Flag 6 deferred).
+
 ## mvp-phase4-product-defaults-ux — 2026-05-30
 
 - T1 (G8 placeholder default flip, T1-amend): Changed `placeholder_api_enabled()` default from `"true"` to `"false"` in `api/config.py`; aligned OpenAPI description (`api/main.py`), `.env.example`, E2E docstring, MVP_PICKUP G8 checklist, and architecture open-questions Q3; set `ARIA_PLACEHOLDER_API=true` on `tests/unit/test_metrics.py` `client` fixture so ASGI metrics tests stay backend-independent after the flip. Rationale: live mode as baseline makes missing backends explicit instead of silent synthetic responses. See `.dev/decision-logs/T1-g8-placeholder-default.md`. **Coverage gap (deferred):** no unit test asserts `placeholder_api_enabled()` when env is unset (T4 CLI smoke forces placeholder via `env=` only).
