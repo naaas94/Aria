@@ -15,6 +15,11 @@ from aria.health.assessment import (
     merge_strict_connection_errors,
 )
 
+_STATUS_INGEST_LLM_NOTE = (
+    "Note: aria ingest additionally requires LLM. "
+    "aria status exits 0 even when LLM is unavailable."
+)
+
 
 def _print_table(report: DependencyReport) -> None:
     rows = [
@@ -29,6 +34,10 @@ def _print_table(report: DependencyReport) -> None:
         if err:
             line += f"  ({err})"
         print(line)
+
+
+def _print_ingest_llm_note() -> None:
+    print(_STATUS_INGEST_LLM_NOTE)
 
 
 def _report_payload(report: DependencyReport) -> dict[str, Any]:
@@ -49,6 +58,7 @@ async def _status_async(*, as_json: bool) -> int:
             print(json.dumps(_report_payload(report), indent=2, sort_keys=True))
         else:
             _print_table(report)
+            _print_ingest_llm_note()
         neo_chroma_ok = report.neo4j_ok and report.chroma_ok
         return 0 if neo_chroma_ok else 1
     finally:
