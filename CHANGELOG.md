@@ -4,6 +4,8 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 ## phase-5-doc-architecture-hygiene — 2026-05-30
 
+- T4 (AUDIT_DIGEST open table sync): Synced `.dev/AUDIT_DIGEST.md` after phase-2-eval-honesty and phase-3-observability Complete. Moved **#2**, **#8**, **#18** to fixed (Phase 2 citations); updated **#10** resolution for Phase 3 G6; added Phase 3 fixed rows **G5**, **G6**, **L1**, **L7**. Left open **#9**, **#16** (product), **#19**, **#20** (no Phase 2 artifact). Rationale: closes MVP_PICKUP Phase 5 AUDIT sync without false-green on uncited rows. **Coverage gap (deferred):** no automated check that open-table rows stay aligned with CHANGELOG after future phases (plan Flag 6 deferred).
+
 - T2 (README production call graph): Added `**Production call graph:**` note at the end of `## Architecture` (verbatim three-line block from `architectural-patterns.md`) and appended an orchestration caveat that the scratch engine is not on the production request path. Rationale: the Architecture section previously implied scratch orchestration drives live `POST /query` / `aria query` traffic. **Coverage gap (deferred):** no automated check keeps README call-graph text in sync with `architectural-patterns.md` if either file changes (plan Flag 6 deferred).
 
 - T1 (path_to_release §1 supersession banner): Added supersession blockquote after `## 1. CLI — does not exist` and struck "No CLI exists" in the Executive Summary with a cross-reference to `CHANGELOG.md` `## 2026_04_11`. Rationale: CLI has been implemented since 2026_04_11; wet-run risks 1–5 preserved for historical context. **Coverage gap (deferred):** no automated doc-drift test asserts banner presence if §1 is edited again (plan Flag 6 deferred).

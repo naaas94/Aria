@@ -1,6 +1,6 @@
 # Audit digest — validated findings and action plan
 
-**Date:** 2026-04-09 (updated 2026-04-10)  
+**Date:** 2026-04-09 (updated 2026-04-10, synced 2026-05-25 after Phase 2+3)  
 **Source reports:** `api-contracts-errors-auth-audit.md`, `telemetry-audit.md`, `evaluation_ci_audit.md`, `product-architecture-audit.md`, `infrastructure-data-dependencies-audit.md`  
 **Validation:** All P0/P1 findings were confirmed against the codebase at audit time (code-level cross-reference, not just report claims).
 
@@ -10,21 +10,18 @@
 
 | Open | Item | Notes |
 |------|------|--------|
-| Open | **#2** Medium-tier retrieval goldens | All five `tests/eval/golden_set/cases/retrieval/*.yaml` still use `retrieved_context: ""`. The retrieval lens keyword-checks `expected_components` against that string — zero hits, guaranteed failure. Nightly “Golden set (all tiers)” uses `--golden-tier=slow` (includes `medium`). *Fix options:* populate synthetic `retrieved_context`, `expect.replay` fixtures, or skip/quarantine until wired to real retrieval. |
-| Open | **#8** `requires_multi_hop` is a no-op | `run_retrieval_check` in `tests/eval/golden_set/runner.py` only sets `multi_hop_declared` when the flag is true; there is no validation of multi-hop retrieval (trace metadata, hop count, etc.). *Fix:* implement a real check or remove/rename the flag. |
-| Partial | **#9** GraphRAG vs vector benchmark | `scripts/benchmark_retrieval.py` uses hardcoded strings and lexical scoring — not live retrieval quality. Docstring mentions “simulated contexts”; audit asked for an explicit **methodology stub** label in the header so nobody treats output as production evidence. *Follow-up:* stronger header disclaimer and/or wire to real retrievers behind a flag; use `tests/eval/e2e/` with a seeded graph for real decisions. |
-| Open | **#18** CI step says “includes replay” | `.github/workflows/ci.yml` still labels the golden step as including replay while `replay/` has no real fixtures and no YAML uses `expect.replay`. *Fix:* rename the step or add a minimal replay golden. |
-| Open | **#19** Nightly Python version gap | `.github/workflows/nightly.yml` pins Python 3.12; PR CI matrix runs 3.12 and 3.13. *Fix:* add 3.13 to nightly or document accepting the gap. |
-| Open | **#20** LangGraph reference | `aria/orchestration/langgraph_reference/` uses stub nodes (`_NoopTools`); no tests import `build_langgraph()`. *Fix:* optional smoke test with `pytest.mark.skipif` or a short doc note that the package is illustrative only. |
-| Partial | **#16** HTTP `/ingest/*` vs full pipeline | **Docs fixed:** module docstring on `api/routers/ingest.py`, README table, and “How to load documents” spell out that routes are chunking/metrics only — not Neo4j/Chroma/entity pipeline. **Still open (product):** optional wiring of full `ingest_document()` behind a flag, dry-run, or rename — only if product asks. |
+| Partial | **#9** GraphRAG vs vector benchmark | `scripts/benchmark_retrieval.py` still uses hardcoded strings and lexical scoring — not live retrieval quality. Docstring mentions “simulated contexts”; audit asked for an explicit **methodology stub** label in the header. *Not in Phase 2 scope — no CHANGELOG/plan citation.* *Follow-up:* stronger header disclaimer and/or wire to real retrievers behind a flag; use `tests/eval/e2e/` with a seeded graph for real decisions. |
+| Partial | **#16** HTTP `/ingest/*` vs full pipeline | **Docs fixed** (prior): module docstring on `api/routers/ingest.py`, README table, and “How to load documents” spell out chunking/metrics only. **Still open (product):** optional wiring of full `ingest_document()` behind a flag, dry-run, or rename — only if product asks. |
+| Open | **#19** Nightly Python version gap | `.github/workflows/nightly.yml` still pins Python 3.12; PR CI matrix runs 3.12 and 3.13. *Not in Phase 2 scope.* *Fix:* add 3.13 to nightly or document accepting the gap. |
+| Open | **#20** LangGraph reference | `aria/orchestration/langgraph_reference/` uses stub nodes (`_NoopTools`); no tests import `build_langgraph()`. *Not in Phase 2 scope.* *Fix:* optional smoke test with `pytest.mark.skipif` or a short doc note that the package is illustrative only. |
 
 ---
 
 ## Cross-cutting themes (still relevant)
 
-1. **Golden suite structure** — empty retrieval context (#2), misleading multi-hop flag (#8), and replay label drift (#18) are the main evaluation/CI honesty gaps.
-2. **Benchmarks vs live quality** — synthetic lexical benchmarks (#9) are fine for smoke if labeled; GraphRAG “quality” claims belong on e2e + seeded data.
-3. **CI parity** — nightly should either match PR Python coverage (#19) or the gap should be explicit in ops docs.
+1. **Benchmarks vs live quality** — synthetic lexical benchmarks (#9) are fine for smoke if labeled; GraphRAG “quality” claims belong on e2e + seeded data.
+2. **CI parity** — nightly should either match PR Python coverage (#19) or the gap should be explicit in ops docs.
+3. **HTTP ingest product path** — docs are honest (#16); full-pipeline wiring remains a product decision.
 
 ---
 
@@ -32,10 +29,11 @@
 
 | Priority | Item | Effort | Notes |
 |----------|------|--------|--------|
-| P0 | **#2** Retrieval goldens | S | Unblocks honest green runs for medium/slow tiers. |
-| P1 | **#8** `requires_multi_hop` | S | Implement check or rename to avoid false confidence. |
-| P2 | **#18**, **#19**, **#20** | XS–S | CI label, nightly matrix, LangGraph clarity. |
-| P2 | **#9** Benchmark header | XS | Disclaimer / stub labeling only. |
+| P2 | **#9** Benchmark header | XS | Methodology / stub labeling only; no Phase 2 artifact. |
+| P2 | **#19**, **#20** | XS–S | Nightly 3.13 matrix, LangGraph clarity. |
+| P3 | **#16** (product) | M | Optional full-pipeline ingest behind flag — only if product asks. |
+
+Phase 2 closed **#2**, **#8**, and **#18** (see Fixed tables). Phase 3 closed **G5**, **G6**, **L1**, **L7** and completed LLM telemetry for audit **#10**.
 
 ---
 
@@ -63,7 +61,7 @@ Summarized for history; details live in repo root `CHANGELOG.md` and code.
 
 | # | Finding | Resolution |
 |---|---------|------------|
-| **10** | Silent `except` on telemetry / agent paths | Warning logs (type only) + `aria_telemetry_write_errors_total` by source. |
+| **10** | Silent `except` on telemetry / agent paths | Warning logs (type only) + `aria_telemetry_write_errors_total` by source (`http_middleware`, `agent`, `llm`). Middleware/agent paths prior; **LLM client** completed Phase 3 G6 — `CHANGELOG.md` phase-3 T2; plan phase-3 §8.3 (zero `except Exception: pass` in `aria/llm/client.py`). |
 | **11** | No telemetry SQLite retention | `prune_older_than`, config env vars, background prune in lifespan, tests. |
 | **12** | 413/422 JSON inconsistency | Middleware 413 includes `code`; `http_exception_handler` maps 413/422; telemetry 422 uses validation-shaped body. |
 | **13** | Multi-worker story undocumented | README section on workers, dedup, SQLite telemetry fragmentation. |
@@ -71,6 +69,23 @@ Summarized for history; details live in repo root `CHANGELOG.md` and code.
 | **15** | Unbounded `list_complete_content_hashes` | Replaced with targeted checks + paginated `iter_complete_content_hashes` for exports. |
 | **17** | Scratch orchestration not in telemetry | `OrchestrationGraph.execute` records `agent_executions` + Prometheus as `orchestration.scratch`; unit tests. |
 | **21** | Stale `docs/security_audit_report.md` hint in test failure | Assertion message points at golden YAML / `expected_api_paths` SSOT. |
+
+### Phase 2 (eval honesty)
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| **2** | Medium-tier retrieval goldens empty `retrieved_context` | Synthetic keyword-matching context in q1–q5 retrieval YAMLs (Option A). `CHANGELOG.md` phase-2 T1; plan phase-2 §8.3. |
+| **8** | `requires_multi_hop` always-pass stub | Removed `multi_hop_declared` stub from `run_retrieval_check`; field retained as declarative metadata only. `CHANGELOG.md` phase-2 T2; `.dev/decision-logs/T2-requires-multi-hop.md`. |
+| **18** | CI step said “includes replay” with no replay case | Fast-tier step renamed to “Golden set (fast tier)”; slow-tier replay case `q6_replay_gdpr_erasure` + `eval-replay-gdpr-erasure.json`. `CHANGELOG.md` phase-2 T3, T4. |
+
+### Phase 3 (observability)
+
+| ID | Finding | Resolution |
+|----|---------|------------|
+| **G5** | Missing HTTP/graph latency histograms and LLM cost counter | `HTTP_REQUEST_DURATION`, `GRAPH_QUERY_DURATION`, `LLM_COST_COUNTER` defined and wired (middleware, Neo4j client, LLM success path). `CHANGELOG.md` phase-3 T1–T4. |
+| **G6** | LLM client silent telemetry swallows | Warning + `TELEMETRY_WRITE_ERRORS_COUNTER` `source="llm"` on `record_llm_call` failures (completes audit **#10** LLM path). `CHANGELOG.md` phase-3 T2. |
+| **L1** | No HTTP latency histogram in Prometheus | `HTTP_REQUEST_DURATION` observed in `TelemetryMiddleware` (`method`, `status_code`). `CHANGELOG.md` phase-3 T3. |
+| **L7** | `INGESTION_DURATION` never observed in full pipeline | Observed at `ingest_document()` completion with `format` label. `CHANGELOG.md` phase-3 T5. |
 
 ### P3 (audit items 22–30)
 
@@ -99,13 +114,13 @@ The sections below preserve the original audit narrative for items that are now 
 
 **1. OpenAPI path expectations** — Fixed: `/metrics` and `/telemetry` in expected sets and SSOT.
 
-**2. Medium-tier retrieval goldens** — See open table.
+**2. Medium-tier retrieval goldens** — Fixed Phase 2 (see Phase 2 table).
 
 ### P1
 
 **3–7.** Fixed per tables above.
 
-**8–9.** See open table.
+**8–9.** #8 fixed Phase 2; #9 see open table.
 
 ### P2
 
@@ -115,7 +130,7 @@ The sections below preserve the original audit narrative for items that are now 
 
 **17.** Fixed — scratch orchestration telemetry.
 
-**18–20.** See open table.
+**18–20.** #18 fixed Phase 2; #19–#20 see open table.
 
 ### P3
 
