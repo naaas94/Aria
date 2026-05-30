@@ -1,7 +1,7 @@
 # Plan — mvp-phase4-product-defaults-ux
 
-**Version:** 1.0  
-**Status:** Active  
+**Version:** 1.1  
+**Status:** Active — T1 halted at kill (1); scope amended (see §7)  
 **Owner:** Ale  
 **Decision log path (T1):** `.dev/decision-logs/T1-g8-placeholder-default.md`
 
@@ -29,7 +29,9 @@
 
 **Binding artifacts:** This plan file (tracked at path above). Context map at tracked path. No external out-of-tree documents are binding.
 
-**G8 resolution adopted by this plan (Flag 1 + Flag 2):** Flip the code default in `api/config.py` from `"true"` to `"false"`. Changes land on the current `dev` branch. Rationale: Phase 4's explicit goal is operator UX improvement; defaulting to live mode makes backend-missing failures explicit rather than silently returning synthetic data. Nightly CI already sets `ARIA_PLACEHOLDER_API=false` explicitly and is unaffected. Unit tests do not read this env var (they pass `use_placeholder` directly). The E2E test docstring is updated as part of T1. If the user's intent was to defer the flip to a separate release branch, T1's kill criterion fires.
+**G8 resolution adopted by this plan (Flag 1 + Flag 2):** Flip the code default in `api/config.py` from `"true"` to `"false"`. Changes land on the current `dev` branch. Rationale: Phase 4's explicit goal is operator UX improvement; defaulting to live mode makes backend-missing failures explicit rather than silently returning synthetic data. Nightly CI already sets `ARIA_PLACEHOLDER_API=false` explicitly and is unaffected. Most unit tests pass `use_placeholder` directly on service calls; **one ASGI-mounted unit test file** (`tests/unit/test_metrics.py`) reads the env default via `TestClient` — T1 (amended) sets `ARIA_PLACEHOLDER_API=true` on that file's `client` fixture. The E2E test docstring is updated as part of T1. If the user's intent was to defer the flip to a separate release branch, T1's kill criterion fires.
+
+**§0 correction (post–T1 HALT):** The v1.0 claim that "unit tests do not read this env var" was wrong for `tests/unit/test_metrics.py::TestRetrievalMetrics::test_placeholder_query_does_not_increment`. v1.1 amends T1 scope accordingly; no re-plan.
 
 ---
 
@@ -53,7 +55,8 @@ Phase 4 resolves the long-standing G8 placeholder-default UX gap (open since the
 
 | Symbol | Owning subtask | Typed surface | Contract | Test |
 |--------|---------------|---------------|----------|------|
-| `placeholder_api_enabled() -> bool` | T1 | `api/config.py:8–10` | Default env string changes from `"true"` to `"false"`; signature unchanged; truthy set stays `{"1","true","yes"}` | T1 kill criterion: run `pytest tests/unit -q` after flip; zero new failures required |
+| `placeholder_api_enabled() -> bool` | T1 | `api/config.py:8–10` | Default env string changes from `"true"` to `"false"`; signature unchanged; truthy set stays `{"1","true","yes"}` | T1 kill criterion: `pytest tests/unit -q` after flip + fixture fix; zero new failures |
+| ASGI unit `client` fixture env | T1 | `tests/unit/test_metrics.py` `client` fixture | `monkeypatch.setenv("ARIA_PLACEHOLDER_API", "true")` before `TestClient(app)` so metrics HTTP tests do not depend on live backends or the flipped default | Same run as above; `test_placeholder_query_does_not_increment` must pass |
 | `_success_payload(outcome: ComplianceQuerySuccess) -> dict` | — (pre-existing, T4 consumes) | `aria/cli/commands/query.py:47–54` | Keys: `answer: str`, `sources: list`, `retrieval_strategy: str`, `trace: dict`, `aria_mode: Literal["placeholder","live"]` — frozen; T4 may not assert keys outside this set | T4 `test_query_json_placeholder_returns_valid_payload` |
 
 ### Error envelope
@@ -73,11 +76,14 @@ N/A — no new structured log fields or sinks.
 
 ### Tests
 
-- Framework: pytest with `typer.testing.CliRunner`
-- Location: `tests/unit/test_cli_entry.py`
-- Isolation: T4 test must pass `env={"ARIA_PLACEHOLDER_API": "true"}` to `runner.invoke(...)` so it forces placeholder mode regardless of the G8-flipped default
-- Naming prefix: `test_query_json_*`
-- Coverage expectation: exit code 0, stdout parses as JSON, all five `_success_payload` keys present, `aria_mode == "placeholder"`
+- Framework: pytest with `typer.testing.CliRunner` (T4); pytest + `starlette.testclient.TestClient` (T1 amended)
+- Location: `tests/unit/test_cli_entry.py` (T4); `tests/unit/test_metrics.py` (T1 amended — `client` fixture only)
+- Isolation:
+  - **T1 (amended):** `tests/unit/test_metrics.py` `client` fixture must set `ARIA_PLACEHOLDER_API=true` via `monkeypatch` before importing/instantiating `api.main:app` (same pattern as `tests/test_telemetry_endpoints.py`). Fixture-wide, not per-test — keeps all metrics HTTP unit tests backend-independent.
+  - **T4:** `runner.invoke(..., env={"ARIA_PLACEHOLDER_API": "true"})` so CLI smoke forces placeholder regardless of G8 default
+- Naming prefix: `test_query_json_*` (T4)
+- Coverage expectation (T4): exit code 0, stdout parses as JSON, all five `_success_payload` keys present, `aria_mode == "placeholder"`
+- *Deferred (documented in CHANGELOG):* no dedicated unit test that `placeholder_api_enabled()` returns `False` when env unset — not required for T1 DoD
 
 ### CLI surface
 
@@ -117,13 +123,13 @@ graph LR
 |-------|---------|
 | **ID** | T1 |
 | **Scope** | Flip `placeholder_api_enabled()` default from `"true"` to `"false"`. Update every surface that documents or relies on the old default. Write the G8 decision log. |
-| **Files to touch** | `api/config.py` (line 10 default string), `.env.example` (line 44 comment), `api/main.py` (lines 103–105 OpenAPI description), `tests/eval/e2e/test_live_queries.py` (line 8 docstring), `.dev/MVP_PICKUP.md` (G8 row line 199 and open decisions line 131), `.dev/architecture/aria/open-questions.md` (Q3 placeholder-default entry → move to Resolved section), `.dev/decision-logs/T1-g8-placeholder-default.md` (create) |
+| **Files to touch** | `api/config.py` (line 10 default string), `.env.example` (line 44 comment), `api/main.py` (lines 103–105 OpenAPI description), `tests/eval/e2e/test_live_queries.py` (line 8 docstring), `tests/unit/test_metrics.py` (`client` fixture: `monkeypatch.setenv("ARIA_PLACEHOLDER_API", "true")` — see §2 Tests), `.dev/MVP_PICKUP.md` (G8 row line 199 and open decisions line 131), `.dev/architecture/aria/open-questions.md` (Q3 placeholder-default entry → move to Resolved section), `.dev/decision-logs/T1-g8-placeholder-default.md` (create) |
 | **Contract bindings** | `placeholder_api_enabled()` typed surface (§2 Types); Decision log path (§2 Decision log path) |
 | **Inputs** | None |
 | **Outputs** | Updated `api/config.py`; updated `.env.example`; updated `api/main.py`; updated `test_live_queries.py` docstring; checked-off G8 in MVP_PICKUP.md; Q3 closed in open-questions.md; `.dev/decision-logs/T1-g8-placeholder-default.md` created; `pytest tests/unit -q` green |
-| **Kill criteria** | (1) Halt if `pytest tests/unit -q` produces **any new failures** after the default flip — report the failing test names and exit. (2) Halt if the current git branch is not `dev` and no explicit user confirmation exists that the flip is intended for the actual target branch (Flag 2). (3) Halt if `.dev/decision-logs/` cannot be created (e.g., `.gitignore` blocks it) — report and await instruction. |
+| **Kill criteria** | (1) Halt if `pytest tests/unit -q` still has **any failures** after the default flip **and** the `test_metrics.py` fixture fix — report failing test names and exit. (On first run after flip only, a single failure in `test_placeholder_query_does_not_increment` is expected; apply the fixture fix, then re-run.) (2) Halt if the current git branch is not `dev` and no explicit user confirmation exists that the flip is intended for the actual target branch (Flag 2). (3) Halt if `.dev/decision-logs/` cannot be created (e.g., `.gitignore` blocks it) — report and await instruction. (4) Halt if fixing kill (1) requires edits outside **Files to touch** — report and escalate (no silent scope creep). |
 | **Log tier** | `architectural` |
-| **Risks & mitigations** | *Risk:* A test outside `tests/unit/` imports the ASGI app and reads the default env without override — kill criterion (1) catches this at unit scope; broader test suites are not run by T1. *Risk:* `.dev/decision-logs/` directory does not exist — T1 creates it; if `.gitignore` excludes `*.md` under `.dev/`, T1 halts. *Risk:* `api/main.py` OpenAPI description wording drifts from actual code behavior — T1 re-reads lines 100–110 before editing to ensure the updated description matches the flipped default exactly. |
+| **Risks & mitigations** | *Risk:* A test outside `tests/unit/` imports the ASGI app and reads the default env without override — kill criterion (1) is scoped to `tests/unit/`; broader failures are reported, not fixed by T1. *Landed HALT (v1.1):* `tests/unit/test_metrics.py` `client` fixture — now in scope. *Risk:* `.dev/decision-logs/` directory does not exist — T1 creates it; if `.gitignore` excludes `*.md` under `.dev/`, T1 halts. *Risk:* `api/main.py` OpenAPI description wording drifts from actual code behavior — T1 re-reads lines 100–110 before editing to ensure the updated description matches the flipped default exactly. |
 
 ---
 
@@ -191,7 +197,7 @@ Reason: after the G8 flip, `--json` in placeholder mode is the only unit-level p
 
 *(Format: `claim | contract surface | failure mode | subtask IDs`)*
 
-1. `All existing unit tests pass after the placeholder_api_enabled flip | api/config.py:10 default string ↔ §2 Types row 1 | if any unit test reads ARIA_PLACEHOLDER_API via os.getenv without setting it explicitly, that test breaks and T1 kill criterion (1) fires | T1`
+1. `All existing unit tests pass after flip plus ASGI fixture isolation | api/config.py:10 ↔ tests/unit/test_metrics.py client fixture ↔ §2 Tests (T1) | if additional unit tests mount api.main without env override, kill (1) fires after fixture fix; escalate via kill (4) | T1` — **partially falsified at HALT; closed by v1.1 scope amendment** (fixture fix in `test_metrics.py`)
 
 2. `CliRunner.invoke env= parameter propagates to os.environ for os.getenv calls within the invoked CLI app | §2 Tests row (env isolation) ↔ aria/cli/commands/query.py:71 ↔ api/config.py:10 | if env= does not propagate, T4 smoke cannot isolate placeholder mode post-flip and kill criterion (1) fires | T4`
 
@@ -203,7 +209,7 @@ Reason: after the G8 flip, `--json` in placeholder mode is the only unit-level p
 
 ### §5.3 Highest re-plan risk
 
-**T1** — the G8 flip is the plan's sole architectural action. If `pytest tests/unit -q` surfaces a failing test after the flip (an unexpected test that reads `ARIA_PLACEHOLDER_API` via `os.getenv` without override), T1 must halt and either (a) add env isolation to the discovered test as part of T1 scope, or (b) escalate to a re-plan if the discovered test is outside T1's touch scope.
+**T1** — the G8 flip is the plan's sole architectural action. **HALT fired (2026-05-30):** `test_placeholder_query_does_not_increment`; resolved by v1.1 **option (a)** — amend T1 to include `tests/unit/test_metrics.py` fixture isolation. Re-plan not warranted: no other `tests/unit` file shares this pattern (service-layer tests use `use_placeholder=`; only `test_metrics.py` has a local `TestClient` fixture).
 
 Secondary process risk: `.dev/decision-logs/` directory is new (no precedent). If the user's project convention places decision logs elsewhere, path drift is a contract violation — catch it by running `git ls-files .dev/` before writing.
 
@@ -219,7 +225,9 @@ Secondary process risk: `.dev/decision-logs/` directory is new (no precedent). I
 
 4. `.env.example comment line 44 references old "true" default (commented out) | .env.example:44 ↔ api/config.py:10 | operator copies .env.example and gets no explicit value; comments describe the old behavior | T1` — **confirmed** (file read confirmed)
 
-5. `T2 README live-mode block must match the G8 decision outcome | §2 Types row 1 ↔ README.md Quickstart | if T1 chose document-only (not flip) and T2 writes "default is now false", README is false | T2` — **suspected** (resolved by T2 kill criterion (3): read T1 output before writing)
+5. `tests/unit/test_metrics.py client fixture mounts api.main without ARIA_PLACEHOLDER_API override | tests/unit/test_metrics.py:505-512 ↔ api/config.py:10 ↔ TestRetrievalMetrics | post-flip, /query runs live retrieval and RETRIEVAL_COUNTER increments; test_placeholder_query_does_not_increment fails | T1` — **confirmed** (HALT evidence: 121 passed, 1 failed)
+
+6. `T2 README live-mode block must match the G8 decision outcome | §2 Types row 1 ↔ README.md Quickstart | if T1 chose document-only (not flip) and T2 writes "default is now false", README is false | T2` — **suspected** (resolved by T2 kill criterion (3): read T1 output before writing)
 
 ---
 
@@ -233,13 +241,27 @@ Packets saved at:
 
 Each packet is self-contained. An executor receiving only the packet (plus executor SKILL.md) has sufficient context without consulting this plan file.
 
-**Retired-string sweep:** No cross-cutting vocabulary change introduced mid-plan. The string `ARIA_PLACEHOLDER_API` is stable across all packets. The old default value `"true"` is retired in `api/config.py` by T1; packets T2 and T4 are emitted after T1's scope is declared, so they reference the post-flip state. T3 does not reference this string in its code output.
+**Retired-string sweep (v1.1):** Re-emitted `packets/T1.md` after scope amendment. T2–T4 unchanged (they already assume post-flip default and explicit placeholder env for T4). Retired: v1.0 T1 kill criterion "do not fix tests outside Files to touch" without scope change — superseded by amended Files to touch list.
 
 ---
 
 ## §7 Amendment subtasks
 
-No amendments at initial plan version.
+### T1-amend — HALT remediation: ASGI unit test placeholder isolation
+
+**Trigger:** T1 executor HALT on kill criterion (1) — `tests/unit/test_metrics.py::TestRetrievalMetrics::test_placeholder_query_does_not_increment` failed after default flip (live `/query` incremented `RETRIEVAL_COUNTER`).
+
+**Decision:** Expand T1 **Files to touch** (not a separate T1.1 node). Rationale: plan §5.3 already authorized option (a); single file, single fixture; no parallel conflict with T2–T4.
+
+**DAG:** No new edges. T2 and T4 remain blocked until T1 completes (including fixture fix).
+
+**Scope:** Add `monkeypatch.setenv("ARIA_PLACEHOLDER_API", "true")` to the `client` fixture in `tests/unit/test_metrics.py` (accept `monkeypatch: pytest.MonkeyPatch` on the fixture). Re-run `pytest tests/unit -q`.
+
+**DoD:** Kill criteria (1)–(3) satisfied; decision log **Assumptions** section notes the corrected unit-test / ASGI coupling (supersede v1.0 "unit tests do not read env" prose if present).
+
+**Partial work on disk (do not revert):** Implementation/docs from pre-HALT T1 may already exist — executor verifies each file, applies only missing edits, then lands fixture fix and re-runs tests.
+
+**Packet:** `packets/T1.md` re-emitted at plan v1.1 (self-contained; supersedes v1.0 T1 packet for execution).
 
 ---
 
