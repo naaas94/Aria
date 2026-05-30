@@ -21,6 +21,16 @@ def test_query_help_lists_options() -> None:
     assert "--regulation-id" in result.stdout or "-r" in result.stdout
 
 
+def test_orchestrated_cli_smoke_placeholder_blocked() -> None:
+    result = runner.invoke(
+        app,
+        ["query", "test question", "--orchestrated"],
+        env={"ARIA_PLACEHOLDER_API": "true"},
+    )
+    assert result.exit_code == 1
+    assert "Orchestrated mode requires live backends" in result.output or result.stderr
+
+
 def test_query_json_placeholder_returns_valid_payload() -> None:
     import json
 
