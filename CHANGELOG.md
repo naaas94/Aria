@@ -2,6 +2,12 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## mvp-phase1-golden-wet-run — 2026-05-30
+
+- T5 (Status preflight clarification): `aria status` human-readable output now ends with a note that LLM health is optional for status exit code 0 but required for `aria ingest`.
+- T1 (Commit sample HTML file): Added `tests/fixtures/sample_regulation.html` with EU AI Act–style regulatory prose (`<title>`, headings, multi-sentence sections) as the frozen wet-run ingest anchor. Deferred automated test: contract forbids new test files; full `aria ingest` on this path is verified in T6.
+- T3 (Fix aria serve port default): `aria serve` now defaults to port **8080** and honors **`API_PORT`** at invocation time (Pattern B), avoiding conflict with Chroma on host port **8000**. Rationale: docker-compose binds Chroma to 8000; the previous serve default collided. Deferred adversarial test: non-integer **`API_PORT`** raising **`ValueError`** at startup (operator misconfiguration; out of Phase 1 scope).
+
 ## 2026_04_12
 
 ### Ingestion
