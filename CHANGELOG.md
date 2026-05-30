@@ -4,6 +4,10 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 ## phase-3-observability — 2026-05-30
 
+- T2 (LLM client G6 telemetry errors + G5 cost counter): Replaced silent `except Exception: pass` around `record_llm_call` with warning log and `TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm")`; increment `LLM_COST_COUNTER` on success when `cost` is present. Rationale: aligns LLM path with middleware/agent observability and exposes accumulated USD cost in Prometheus. + added `tests/test_llm_telemetry.py` cost-counter tests. **Coverage gap (deferred to T8):** `TELEMETRY_WRITE_ERRORS_COUNTER` increment when `record_llm_call` raises on success and final-retry error paths.
+
+- T5 (Ingestion pipeline duration histogram): Observe `INGESTION_DURATION` at `ingest_document()` completion with `format=fmt.value` (`pdf`/`html`); timer starts after successful parse, not on PARSE_ERROR or SKIPPED_DUPLICATE early returns. Rationale: CLI/eval/seed corpus paths had zero Prometheus duration signal while HTTP smoke ingest already observed the metric. **Coverage gap (deferred to T8):** `TestIngestionPipelineDuration` in `tests/unit/test_metrics.py` — histogram +1 on completion and no increment on SKIPPED_DUPLICATE.
+
 - T1 (Phase 3 Prometheus metric definitions): Added `HTTP_REQUEST_DURATION`, `GRAPH_QUERY_DURATION`, and `LLM_COST_COUNTER` to `aria/observability/metrics.py` per frozen §2 contract. Rationale: downstream T2–T5 wire observe/increment calls against these symbols; defining them first avoids registration collisions. + added contract tests in `tests/unit/test_metrics.py` (`TestPhase3MetricDefinitions`).
 
 ## phase-2-eval-honesty — 2026-05-30
