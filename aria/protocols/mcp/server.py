@@ -180,6 +180,32 @@ class MCPToolPortsAdapter:
         return await agent.process(entities)
 
     async def index_vectors(self, chunks: list[dict[str, Any]]) -> bool:
+        if not chunks:
+            return True
+        if not self._mcp._vector_store:
+            raise RuntimeError("Vector store not configured")
+        from aria.ingestion.chunker import DocumentChunk
+
+        doc_chunks: list[DocumentChunk] = []
+        for chunk in chunks:
+            metadata = chunk.get("metadata") or {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            source_hash = str(
+                chunk.get("source_document_hash")
+                or chunk.get("source_hash")
+                or metadata.get("source_hash")
+                or ""
+            )
+            doc_chunks.append(
+                DocumentChunk(
+                    chunk_id=str(chunk.get("chunk_id", "")),
+                    text=str(chunk.get("text", "")),
+                    metadata=metadata,
+                    source_document_hash=source_hash,
+                )
+            )
+        self._mcp._vector_store.index_chunks(doc_chunks)
         return True
 
     async def query_graph(self, query_name: str, params: dict[str, Any]) -> list[dict[str, Any]]:

@@ -1,7 +1,7 @@
 # Plan — mvp-phase6-mvp-plus
 
-**Version:** 1.0
-**Status:** Active
+**Version:** 1.1
+**Status:** Active — §8 handoff invalid (T2 uncommitted at closure SHA; see §8.1)
 **Orchestrator skill:** orchestrator-planning v0.6
 **Plan file:** `.dev/plans/mvp-phase6-mvp-plus/plan.md`
 **Decision log path (T2):** `.dev/decision-logs/T2-mcp-adapter-wiring.md`
@@ -304,4 +304,129 @@ Each packet is self-contained: §1 task statement + §2 shared contracts (verbat
 
 ## §8 Auditor handoff
 
-*(To be completed when plan is marked Complete. §8.1 requires a clean-checkout verification run; §8.2 artifact paths must resolve via `git show HEAD:`; §8.4 must disposition all §5.2 and §5.4 items.)*
+**Handoff validity:** **Invalid** — do not mark this plan **Complete** or run adversarial audit against `2248f92` alone. T4/T5 commits import `aria.services.orchestrated_query` but **no T2 commit exists** on `dev`; clean-checkout `pytest` fails at import time. Land T2 (see §8.1 remediation), re-run verification on a clean tree, then bump **Status** to **Complete** and refresh §8.1 closure SHA.
+
+### §8.1 Completion snapshot
+
+- **Closure SHA (current `dev` HEAD):** `2248f923e80afef4ed629461ac5db004583a3e93` (T5; phase-6 commits in order `a387091` → `b2ff729` → `e2c725a` → `2248f92`; **T2 absent**)
+- **Working tree at handoff authoring (2026-05-30):** dirty — uncommitted T2 implementation (`aria/services/orchestrated_query.py`, `tests/unit/test_mcp_adapter.py`, `aria/protocols/mcp/server.py` `index_vectors` fix, `.dev/decision-logs/T2-mcp-adapter-wiring.md`); local plan edit (this §8 block + `documented_mess_up_to_cover_for_in_retro_method` appendix)
+- **Verification (clean checkout at `2248f92`; binding per orchestrator-planning §8.1):**
+
+  ```text
+  pytest tests/unit -q --tb=no
+  ```
+
+  **Result:** **FAILED** — exit code 4. `ModuleNotFoundError: No module named 'aria.services.orchestrated_query'` while loading `api/routers/query.py` (T4 import at HEAD). **Does not satisfy §8.1.**
+
+- **Supplementary (non-binding; dirty tree with T2 files present on disk):** `pytest tests/unit -q --tb=no` → **128 passed**, 38 warnings, exit code 0 (~6.6s, Python 3.14, 2026-05-30). Not acceptable for handoff closure.
+
+- **Remediation before valid handoff:** Commit T2-owned artifacts in one commit (minimum: `aria/services/orchestrated_query.py`, `tests/unit/test_mcp_adapter.py`, `aria/protocols/mcp/server.py`, `.dev/decision-logs/T2-mcp-adapter-wiring.md`, `CHANGELOG.md` T2 bullet if not already accurate at HEAD). Confirm `git show HEAD:aria/services/orchestrated_query.py` succeeds; re-run clean-checkout `pytest tests/unit -q`; update §8.1 closure SHA and **Status**.
+
+### §8.2 Artifact chain
+
+| Order | Path | `git show HEAD:` at `2248f92` |
+|-------|------|-------------------------------|
+| 1 | `.dev/plans/mvp-phase6-mvp-plus/context-map.md` | OK (scout SHA `ee870022`; stale vs closure — orchestration/MCP surfaces unchanged per §0; auditor re-verify if T2 commit touches unexpected files) |
+| 2 | `.dev/plans/mvp-phase6-mvp-plus/plan.md` (v1.1 + §8) | OK at prior HEAD; this §8 lands in working copy / next commit |
+| 3 | `.dev/plans/mvp-phase6-mvp-plus/packets/T{1..5}.md` | OK |
+| 4 | `.dev/decision-logs/T2-mcp-adapter-wiring.md` | **MISSING** (exists on disk only) |
+| 5 | `CHANGELOG.md` § `mvp-phase6-mvp-plus — 2026-05-30` | OK (T2–T5 bullets present; T2 code not at HEAD — narrative/code drift) |
+| 6 | `aria/services/orchestrated_query.py` | **MISSING** |
+| 7 | `tests/unit/test_mcp_adapter.py` | **MISSING** |
+| 8 | `aria/protocols/mcp/server.py` (`index_vectors` → `VectorStore.index_chunks`) | OK at HEAD but **stub** (`return True` only); working-tree diff implements §2 Surface 10 |
+| 9 | `aria/services/compliance_query.py` (T1 DTOs) | OK (`a387091`) |
+| 10 | `aria/orchestration/scratch/graph.py` (T3 per-step rows) | OK (`b2ff729`) |
+| 11 | `aria/cli/commands/query.py`, `api/routers/query.py` (T4 routing) | OK (`e2c725a`) |
+| 12 | `.dev/demo/aria-mvp-demo.sh`, `README.md` § Demo, `.dev/MVP_PICKUP.md` Phase 6 | OK (`2248f92`) |
+| 13 | Prerequisite plans (T1 kill criterion): `mvp-phase1-golden-wet-run`, `phase-2-eval-honesty`, `phase-3-observability`, `mvp-phase4-product-defaults-ux` | OK — all **Status: Complete**; `phase-5-doc-architecture-hygiene` **Complete** (non-blocking per §0 Flag 6) |
+
+### §8.3 §2 evidence (per-row)
+
+Evidence below uses **working-tree + commit** where T2 is uncommitted; symbols at HEAD without T2 are marked **broken at HEAD**.
+
+| §2 row | Landed artifact | Test / check |
+|--------|-----------------|--------------|
+| `ComplianceQueryRequest.orchestrated` | `aria/services/compliance_query.py:37-40` (`a387091`) | T4 `test_orchestrated_cli_smoke_placeholder_blocked` (placeholder gate, not field round-trip) |
+| `ComplianceQueryResponse.execution_trace` | `aria/services/compliance_query.py:55` (`a387091`) | T4 conditional `_success_payload` / orchestrated path; CHANGELOG notes deferred model round-trip |
+| `build_mcp_adapter` | `aria/services/orchestrated_query.py:17-19` (**uncommitted**) | `tests/unit/test_mcp_adapter.py::test_mcp_adapter_construction` (**uncommitted**) |
+| `run_orchestrated_query` | `aria/services/orchestrated_query.py:22-65` (**uncommitted**) | `test_run_orchestrated_query_missing_deps_returns_unavailable` (**uncommitted**); full success path deferred per CHANGELOG |
+| `ORCHESTRATION_SCRATCH_AGENT_NAME` | `aria/orchestration/scratch/graph.py:29` | `TestOrchestrationTelemetry` (`b2ff729`) |
+| Error envelope — CLI placeholder + orchestrated | `aria/cli/commands/query.py` stderr message + exit 1 | `tests/unit/test_cli_entry.py::test_orchestrated_cli_smoke_placeholder_blocked` (`e2c725a`) |
+| Error envelope — API placeholder + orchestrated | `api/routers/query.py` HTTP 400 `detail` | **Coverage gap (deferred):** no unit test at HEAD (per CHANGELOG T4) |
+| Error envelope — missing Neo4j/Chroma | `aria/services/orchestrated_query.py:31-35` (**uncommitted**) | `test_run_orchestrated_query_missing_deps_returns_unavailable` |
+| Naming — module / tests / decision log | paths per §2 Naming | T2 decision log **not at HEAD**; tests/module **uncommitted** |
+| Logging | N/A (no new structlog fields) | — |
+| Tests — T2 | `tests/unit/test_mcp_adapter.py` | construction + missing-deps + `test_index_vectors_delegates_to_vector_store_index_chunks` (**uncommitted**) |
+| Tests — T3 | `tests/unit/test_orchestration.py::TestOrchestrationTelemetry` | per-step SQLite rows + mock call-count test (`b2ff729`) |
+| Tests — T4 | `test_orchestrated_cli_smoke_placeholder_blocked` | landed `e2c725a`; trajectory eval not re-run for handoff (no regression signal in unit suite) |
+| CLI `--orchestrated` | `aria/cli/commands/query.py` Typer option | demo script + smoke test |
+| `X-ARIA-Mode: orchestrated-live` | `api/routers/query.py:77` | no eval contract test references header enum (§5.4 #3) |
+| Decision log T2 | `.dev/decision-logs/T2-mcp-adapter-wiring.md` | **uncommitted** — §8.2 fails until committed |
+
+**Subtask landed commits:**
+
+| Subtask | Commit | Notes |
+|---------|--------|-------|
+| T1 | `a387091` | DTO fields + CHANGELOG |
+| T2 | **—** | **Not committed.** Working tree implements packet scope; CHANGELOG T2 bullet at HEAD without matching code — see `documented_mess_up_to_cover_for_in_retro_method` |
+| T3 | `b2ff729` | per-step `record_agent_execution` + tests |
+| T4 | `e2c725a` | CLI/API routing (imports broken at HEAD without T2) |
+| T5 | `2248f92` | demo script, README, MVP_PICKUP `[x]` |
+
+### §8.4 §5 disposition
+
+| Item | Status | Notes |
+|------|--------|-------|
+| §5.2 #1 `AppConnections` non-None under strict connect | **treat-as-prediction** | `build_mcp_adapter` uncommitted; auditor verify `connect_app_dependencies(strict=True)` at post-T2 SHA |
+| §5.2 #2 ToolPorts async ↔ MCPToolPortsAdapter | **closed** | working-tree adapter + graph execute green in 128-pass run; kill T2-KC1 did not fire |
+| §5.2 #3 `orchestrated` + `extra="forbid"` | **closed** | `compliance_query.py` + unit suite pass with T2 present |
+| §5.2 #4 Phases 1–4 Complete | **closed** | all prerequisite plans **Complete** at handoff time |
+| §5.2 #5 `_success_payload` conditional `execution_trace` | **closed** | T4 smoke + Phase 4 placeholder JSON test unaffected per kill criteria |
+| §5.3 highest re-plan risk (T2) | **open** | **Process surprise landed:** T2 executor output never committed while T4/T5 proceeded — invalid tree at HEAD; not VectorStore API failure |
+| §5.4 #1 ToolPorts async boundary | **closed** | confirmed at plan time; working-tree tests pass |
+| §5.4 #2 trajectory eval vs routing | **closed** | no EDGE_MAP edits in T4 commit; unit suite pass |
+| §5.4 #3 `X-ARIA-Mode` contract tests | **closed** | `tests/eval/test_api_contracts.py` has no `orchestrated` / header-enum assertions |
+| §5.4 #4 placeholder gate before T4 | **closed** | frozen messages in CLI/API + smoke test |
+| §5.4 #5 Phase 4 exact key equality | **closed** | `test_query_json_placeholder_returns_valid_payload` still passes (128 unit) |
+| §5.4 #6 `index_vectors` / VectorStore | **open** | **At HEAD:** stub. **Working tree:** `index_chunks` via `DocumentChunk` mapping + `test_index_vectors_delegates_to_vector_store_index_chunks` — **blocks merge until T2 commit** |
+| §0 Flag 6 Phase 5 non-blocking | **closed** | Phase 5 plan Complete |
+| Parallel CHANGELOG cross-staging (retro appendix) | **open** | methodology signal documented below §8; recommend T2 commit + `git add -p` discipline |
+
+### §8.5 Cold-read seeds
+
+1. `aria/services/orchestrated_query.py` — factory, deps gate, lazy `build_default_graph`, `execution_trace` mapping (contract core; **missing at HEAD**)
+2. `aria/cli/commands/query.py` + `api/routers/query.py` — placeholder gate, orchestrated branch, `X-ARIA-Mode`
+3. `aria/orchestration/scratch/graph.py` — per-step `agent_name` convention vs aggregate row
+4. `aria/protocols/mcp/server.py` — `MCPToolPortsAdapter.index_vectors` (stub at HEAD vs intended `index_chunks` delegation)
+5. `tests/unit/test_mcp_adapter.py` + `tests/unit/test_orchestration.py::TestOrchestrationTelemetry` — §2 test anchors
+
+---
+
+## documented_mess_up_to_cover_for_in_retro_method
+
+**When:** 2026-05-30 · **Subtask:** T3 executor run · **Actor:** executor agent (Composer)
+
+**What happened**
+
+1. T3 commit (`b2ff729`, message `T3: persist per-step orchestration traces in telemetry store`) was intended to touch only `aria/orchestration/scratch/graph.py`, `tests/unit/test_orchestration.py`, and `CHANGELOG.md` (T3 bullet only).
+2. The working tree already contained an unstaged **T2** changelog bullet under `## mvp-phase6-mvp-plus — 2026-05-30` (parallel T2 work in progress). The first `git add CHANGELOG.md` swept that bullet into the index; the initial commit attempt also briefly picked up other staged T2 artifacts before reset.
+3. Executor tried to “fix scope creep” by **deleting the T2 bullet** from `CHANGELOG.md` and amending/recommitting T3-only files. That removed the owner’s in-progress audit entry from the file even though T2 code was never part of the T3 commit.
+4. A botched `git commit --amend` after the deletion briefly merged unrelated T2 files into the T3 commit; `git reset --mixed HEAD~1` + a clean T3-only recommit corrected the commit contents but **left the T2 changelog line gone** from the tracked file until the user flagged it.
+5. T2 bullet was restored in the working copy (above T3 in the phase-6 section); user must ensure it lands in the eventual T2 commit or a dedicated changelog fix commit.
+
+**Why it’s a methodology signal (not just a git oops)**
+
+- **Parallel subtasks + shared CHANGELOG section** = high risk of cross-staging; “files to touch” per packet does not isolate changelog rows when multiple executors append under the same dated header.
+- **Scope-hygiene reflex backfired:** removing another subtask’s changelog line is worse than accidentally including it in a commit message scope — the file is the shared audit trail.
+- **Amend on a dirty index** compounded the error (unrelated staged files entered the commit). Reset/recover was correct; deleting peer work was not.
+
+**Retro prompts**
+
+- Should phase plans require **one changelog bullet per commit** with executor instructed to `git add -p CHANGELOG.md` (or stage only the new hunk)?
+- Should parallel packets name **exclusive changelog insertion points** (e.g. T2 adds under a `<!-- T2 -->` anchor) or defer all changelog writes to fan-in?
+- Executor self-check: if fixing “wrong files in commit,” never edit **content belonging to another subtask** in shared docs — only reset index and recommit owned hunks.
+
+**Evidence**
+
+- Commits: `43c98b0` (superseded), `55be111` (bad amend, superseded), `b2ff729` (current T3-only, 3 files).
+- Restored T2 bullet text recovered from `git show 55be111:CHANGELOG.md` diff.
