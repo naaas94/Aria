@@ -1,9 +1,11 @@
 # Plan — mvp-phase4-product-defaults-ux
 
-**Version:** 1.1  
-**Status:** Active — T1 halted at kill (1); scope amended (see §7)  
+**Version:** 1.2  
+**Status:** Complete  
 **Owner:** Ale  
-**Decision log path (T1):** `.dev/decision-logs/T1-g8-placeholder-default.md`
+**Implementation SHA (closure):** `e86c6072f4fa05aab8ffa8dae3a8e3442b78644e`  
+**Decision log path (T1):** `.dev/decision-logs/T1-g8-placeholder-default.md`  
+**Audit:** `.dev/audits/2026-05-30-mvp-phase4-product-defaults-ux.md` — initial `fail` (2026-05-30); remediated by T3-amend + T5-amend + this §8 closure
 
 ---
 
@@ -159,7 +161,7 @@ graph LR
 | **Contract bindings** | All §2 contracts (no code symbols touched; standard naming convention for env vars). Partition constraint: T3 edits **only** the wet run log template block (lines 249–268); it does not touch the Phase 4 checklist rows (lines 197–202) or the G8 open-decisions row (line 131) — those are T1's domain. |
 | **Inputs** | None (independent of T1) |
 | **Outputs** | `.dev/MVP_PICKUP.md` wet run template with explicit `LLM_MODEL=` and `LLM_BASE_URL=` fields; `.dev/QUICK_TODOS` updated (cleared or annotated as consolidated) |
-| **Kill criteria** | (1) Halt if the specific qwen model ID (LiteLLM-compatible string) and Ollama base URL cannot be resolved from project context (`.env.example`, `aria/llm/client.py` defaults, or user confirmation) — do not write `LLM_MODEL=qwen something` into the template (Flag 5). Record the resolved or default values only. (2) Halt if touching MVP_PICKUP.md causes a merge conflict with an in-progress Phase 1 wet run session fill in the same section. (3) Halt if the G8 wet-run template section has already been edited by T1 or Phase 1 — read the section before editing and report if content is unexpected. |
+| **Kill criteria** | **Superseded for execution by T3-amend packet (v1.2).** Original v1.0–1.1 criteria fired KC(2) when T6 session data occupied lines 251–316. |
 | **Log tier** | `standard` |
 | **Risks & mitigations** | *Risk:* Flag 5 (qwen model ID unknown) forces a halt — fallback: add the qwen field as a comment with a `# TODO: confirm model string` note rather than leaving the template broken, but only after attempting to resolve from `aria/llm/client.py` defaults and `.env.example`. *Risk:* T3 and Phase 1 executor edit the same MVP_PICKUP.md section concurrently — sequencing note in §3 DAG should prevent this; executor must read the file before touching it and halt if the template section is already filled with session data. |
 
@@ -205,7 +207,7 @@ Reason: after the G8 flip, `--json` in placeholder mode is the only unit-level p
 
 4. `Qwen model string is resolvable to a valid LiteLLM model ID before T3 execution | .dev/QUICK_TODOS ↔ .dev/MVP_PICKUP.md wet run template | if the model string cannot be confirmed, T3 kill criterion (1) fires; wet run template gets a placeholder comment rather than a broken model string | T3`
 
-5. `T3 executes before any Phase 1 wet run session fills the MVP_PICKUP.md § Wet run log section | .dev/MVP_PICKUP.md:249-268 ↔ §3 DAG inter-plan sequencing note | if Phase 1 fills session data concurrently, T3's template edit causes a merge conflict and kill criterion (2) fires | T3`
+5. `T3 executes before any Phase 1 wet run session fills the MVP_PICKUP.md § Wet run log section | .dev/MVP_PICKUP.md:249-268 ↔ §3 DAG inter-plan sequencing note | **falsified 2026-05-30** — T6 session filled block first; T3 HALT; closed by T3-amend append-only path (§7) | T3`
 
 ### §5.3 Highest re-plan risk
 
@@ -236,8 +238,10 @@ Secondary process risk: `.dev/decision-logs/` directory is new (no precedent). I
 Packets saved at:
 - `.dev/plans/mvp-phase4-product-defaults-ux/packets/T1.md`
 - `.dev/plans/mvp-phase4-product-defaults-ux/packets/T2.md`
-- `.dev/plans/mvp-phase4-product-defaults-ux/packets/T3.md`
+- `.dev/plans/mvp-phase4-product-defaults-ux/packets/T3.md` *(superseded — post-mortem)*
+- `.dev/plans/mvp-phase4-product-defaults-ux/packets/T3-amend.md` **← execute for wet-run template**
 - `.dev/plans/mvp-phase4-product-defaults-ux/packets/T4.md`
+- `.dev/plans/mvp-phase4-product-defaults-ux/packets/T5-amend.md` **← audit remediation**
 
 Each packet is self-contained. An executor receiving only the packet (plus executor SKILL.md) has sufficient context without consulting this plan file.
 
@@ -263,8 +267,136 @@ Each packet is self-contained. An executor receiving only the packet (plus execu
 
 **Packet:** `packets/T1.md` re-emitted at plan v1.1 (self-contained; supersedes v1.0 T1 packet for execution).
 
+### T3-amend — HALT remediation: append wet-run template (do not overwrite T6 session)
+
+**Trigger:** T3 executor HALT on kill criterion **(2)** — `## Wet run log` contains completed T6 golden-path session (2026-05-30), not the blank scaffold.
+
+**Orchestrator decision:** **Option 2** — append a copy-paste template subsection; preserve session history. **Not** option 1 (close without template — fails audit F-01/F-02). **Not** option 3 (archive/replace — requires explicit user approval for data movement).
+
+**DAG:** No new edges. T3-amend may run in parallel with **T5-amend**.
+
+**Scope:**
+1. `.dev/MVP_PICKUP.md` — **Do not edit** the filled session inside the existing fenced block (approx. lines 251–316). Optionally retitle `## Wet run log (fill on first live session)` → `## Wet run log` with a one-line note that the first session is recorded below.
+2. **After** the closing ` ``` ` of the session block, add `## Wet run log template (copy for next session)` with a **new** fenced `text` block containing blank `LLM_MODEL=` / `LLM_BASE_URL=` lines (see T3-amend packet for binding example values from `.env.example`).
+3. `.dev/QUICK_TODOS` — replace scratch line with pointer to the new template section (consolidation).
+
+**Kill criteria (T3-amend):**
+1. Halt if template would use `LLM_MODEL=qwen something` or any non–LiteLLM-safe placeholder without `.env.example` / `aria/llm/client.py` / comment fallback per original KC(1).
+2. Halt if edits touch **inside** the T6 session fenced block (data loss risk) — report and escalate.
+3. Halt if the new template subsection is missing both `LLM_MODEL=` and `LLM_BASE_URL=` as dedicated lines.
+
+**DoD:** F-01 closed; §1 item (3) satisfied for **future** sessions; QUICK_TODOS consolidated.
+
+**Packet:** `packets/T3-amend.md` (supersedes `packets/T3.md` for execution).
+
+### T5-amend — Audit remediation: CHANGELOG + MVP_PICKUP checkboxes + plan metadata
+
+**Trigger:** Adversarial audit `.dev/audits/2026-05-30-mvp-phase4-product-defaults-ux.md` — F-03 (T4 changelog line lost at `08c12ab`), F-06 (Phase 4 checkboxes stale), F-04 (plan status / §8 gate).
+
+**DAG:** `T5-amend` may run in parallel with `T3-amend`. **Orchestrator** (not executor) fills §8 after both land and verification passes.
+
+**Scope:**
+1. `CHANGELOG.md` — under `mvp-phase4-product-defaults-ux`, restore **T4** bullet (re-read `git show e06417b:CHANGELOG.md` for wording; do not drop on future doc-only commits).
+2. `.dev/MVP_PICKUP.md` — Phase 4 checklist (lines ~197–202 only): mark `[x]` for README live-mode, QUICK_TODOS/LLM template (after T3-amend), `aria query --json` smoke when T4 is at HEAD.
+3. Do **not** edit plan §8 (orchestrator-owned).
+
+**Kill criteria:**
+1. Halt if T4 commit is not on current branch (`tests/unit/test_cli_entry.py` contains `test_query_json_placeholder_returns_valid_payload`).
+2. Halt if CHANGELOG phase-4 section still lacks T4 after edit.
+
+**Packet:** `packets/T5-amend.md`
+
+**Retired-string sweep:** T3 packet references `ollama/llama3.2` as `.env.example` default — **retired**; binding default is `gpt-4o-mini` / `https://api.openai.com/v1` per HEAD `.env.example` lines 15–16.
+
 ---
 
 ## §8 Auditor handoff
 
-*Populated when plan status advances to **Complete**.*
+### §8.1 Completion snapshot
+
+| Field | Value |
+|-------|--------|
+| **Tree SHA** | `e86c6072f4fa05aab8ffa8dae3a8e3442b78644e` |
+| **Branch** | `dev` |
+| **Verification command** | `pytest tests/unit -q` |
+| **Environment** | Windows 10, Python 3.14.2 (local run 2026-05-30) |
+| **Result** | **123 passed**, 0 failed, exit code **0**, 38 warnings (chromadb `asyncio.iscoroutinefunction` deprecation) |
+
+**Note:** Code and docs through T5-amend are at `e86c607`. This plan file’s **Complete** status and full §8 block were written on the working tree immediately after that SHA; commit `plan.md`, `packets/T3-amend.md`, `packets/T5-amend.md`, and the phase-4 audit file together so `git show HEAD:` matches §8.2 for auditors.
+
+**Commits (phase 4, oldest → newest):** `b3725f4` T1 · `7e7a384` plan v1.1 · `e06417b` T4 · `08c12ab` T2 · `37b181f` T3-amend · `e86c607` T5-amend
+
+### §8.2 Artifact chain
+
+Read in order. Paths must resolve at closure SHA unless noted.
+
+| # | Path | Status at `e86c607` |
+|---|------|------------------------|
+| 1 | `.dev/plans/mvp-phase4-product-defaults-ux/context-map.md` | present-in-HEAD (scout SHA `ee87002` — **stale**; see §8.4 P-01) |
+| 2 | `.dev/plans/mvp-phase4-product-defaults-ux/plan.md` | present-in-HEAD (v1.2 gate); **§8 Complete** on working tree — commit with row 8–9 |
+| 3 | `.dev/plans/mvp-phase4-product-defaults-ux/packets/T1.md` | present-in-HEAD |
+| 4 | `.dev/plans/mvp-phase4-product-defaults-ux/packets/T2.md` | present-in-HEAD |
+| 5 | `.dev/plans/mvp-phase4-product-defaults-ux/packets/T3.md` | present-in-HEAD (superseded — post-mortem) |
+| 6 | `.dev/plans/mvp-phase4-product-defaults-ux/packets/T4.md` | present-in-HEAD |
+| 7 | `.dev/decision-logs/T1-g8-placeholder-default.md` | present-in-HEAD |
+| 8 | `.dev/plans/mvp-phase4-product-defaults-ux/packets/T3-amend.md` | **commit with closure** (orchestrator packet; not in `e86c607`) |
+| 9 | `.dev/plans/mvp-phase4-product-defaults-ux/packets/T5-amend.md` | **commit with closure** |
+| 10 | `.dev/audits/2026-05-30-mvp-phase4-product-defaults-ux.md` | **commit with closure** |
+
+### §8.3 §2 evidence
+
+| §2 row | Landed artifact | Proof |
+|--------|-----------------|-------|
+| `placeholder_api_enabled()` default `"false"` | `api/config.py:10` | `pytest tests/unit -q` green; T1 decision log |
+| ASGI `client` fixture env | `tests/unit/test_metrics.py:506-507` | `test_placeholder_query_does_not_increment` in suite (123 passed) |
+| `_success_payload` keys + CLI | `aria/cli/commands/query.py:47-54` | `tests/unit/test_cli_entry.py:24-38` `test_query_json_placeholder_returns_valid_payload` |
+| CLI `aria query` / `--json` | `aria/cli/commands/query.py:107`, `127-130` | Same test invokes `["query", "test question", "--json"]` |
+| Tests policy (unit, CliRunner env) | `tests/unit/test_cli_entry.py`, `tests/unit/test_metrics.py` | §8.1 command |
+| Wet-run template `LLM_MODEL` / `LLM_BASE_URL` | `.dev/MVP_PICKUP.md:320-329` (`## Wet run log template`) | Grep + T3-amend CHANGELOG; docs-only (no pytest) |
+| Decision log path | `.dev/decision-logs/T1-g8-placeholder-default.md` | `git show e86c607:.dev/decision-logs/T1-g8-placeholder-default.md` |
+| Error envelope / Logging | N/A | — |
+
+**Landed (T2/T3-amend/T5-amend, docs):** `README.md` Live mode block · `.dev/QUICK_TODOS` pointer · `CHANGELOG.md` phase-4 section (T1–T5-amend bullets) · `.dev/MVP_PICKUP.md` Phase 4 checklist lines 199–202 `[x]`
+
+**Deferred (§2 acknowledged):** no unit test that `placeholder_api_enabled()` is `False` when `ARIA_PLACEHOLDER_API` unset — documented in CHANGELOG T1/T4 gaps.
+
+### §8.4 §5 disposition
+
+| Item | Status | Notes |
+|------|--------|-------|
+| §5.2 #1 unit tests + ASGI fixture after flip | **closed** | T1-amend fixture `b3725f4`; 123 passed at §8.1 |
+| §5.2 #2 CliRunner `env=` propagation | **closed** | T4 test at `e06417b` |
+| §5.2 #3 `.dev/decision-logs/` creatable | **closed** | T1 decision log in HEAD |
+| §5.2 #4 qwen model resolvable | **closed** | T3-amend uses `.env.example` `gpt-4o-mini` + Ollama comment, not `qwen something` |
+| §5.2 #5 T3 before Phase 1 fill | **closed** | Falsified; T3-amend append path `37b181f` |
+| §5.3 T1 re-plan risk | **closed** | HALT remediated v1.1; no further unit ASGI mounts without env |
+| §5.4 #1 ASGI / e2e live default | **closed** | `test_live_queries.py` docstring updated (T1) |
+| §5.4 #2 T3 ∥ Phase 1 wet run | **closed** | Session preserved; template appended |
+| §5.4 #3–#4 OpenAPI / `.env.example` | **closed** | T1 |
+| §5.4 #5 metrics `client` fixture | **closed** | T1-amend |
+| §5.4 #6 T2 vs T1 outcome | **closed** | T2 landed after T1 flip |
+| Context map staleness (audit P-01) | **treat-as-prediction** | Scout `ee87002`; verify against `e86c607` code, not map alone |
+| Architecture inventory default `true` (audit F-07) | **open** | Phase 5 G10; non-blocking for phase 4 |
+| Audit F-01 / F-02 / F-03 / F-04 / F-06 | **closed** | T3-amend + T5-amend + §8 fill |
+
+### §8.5 Cold-read seeds
+
+1. `api/config.py` (`placeholder_api_enabled`)
+2. `tests/unit/test_metrics.py` (`client` fixture, `TestRetrievalMetrics`)
+3. `tests/unit/test_cli_entry.py` (`test_query_json_placeholder_returns_valid_payload`)
+4. `.dev/MVP_PICKUP.md` (Phase 4 checklist + wet-run template subsection)
+5. `CHANGELOG.md` (`mvp-phase4-product-defaults-ux` section)
+6. `.dev/decision-logs/T1-g8-placeholder-default.md`
+
+### §8.6 Audit remediation cross-link
+
+| Audit finding | Remediation | Evidence |
+|---------------|-------------|----------|
+| F-01 / F-02 T3 template | T3-amend `37b181f` | `.dev/MVP_PICKUP.md` `## Wet run log template` |
+| F-03 T4 CHANGELOG lost | T5-amend `e86c607` | `CHANGELOG.md` T4 bullet restored |
+| F-04 §8 / plan closure | Orchestrator §8 (this block) | Plan **Complete** |
+| F-06 MVP_PICKUP checkboxes | T5-amend | Lines 199–202 `[x]` |
+| F-05 unset-env unit test | **open** (deferred per §2) | CHANGELOG T1 gap |
+| F-07 architecture inventory | **open** (Phase 5) | Non-blocking |
+
+**Re-audit:** After committing row 8–10 in §8.2, re-run adversarial audit against `e86c607` + closure commit; expect `pass` on F-01–F-04, F-06 with F-05/F-07 still minor/open.
