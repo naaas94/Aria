@@ -41,6 +41,7 @@ jobs:
         run: |
           python -m pytest tests/eval/golden_set/test_goldens.py \
             --golden-tier=fast -m golden -v --tb=short
+          python -m pytest tests/eval/golden_set/test_runner_unit.py -v --tb=short
 
       - name: API contract and security tests
         run: |

@@ -4,6 +4,7 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 ## phase-2-eval-honesty — 2026-05-30
 
+- T5 (Wire runner unit tests into PR CI): Added a second `pytest` line in `.github/workflows/ci.yml` golden-set step for `test_runner_unit.py` (no `-m golden`). Rationale: without CI, reintroducing the `multi_hop_declared` stub would not fail medium/slow goldens—only unit tests gate stub regression (audit F-03). **Coverage gap (deferred):** no pytest asserts that CI workflow still invokes `test_runner_unit.py` after future edits (YAML-only gate in this subtask).
 - T2 (Remove `requires_multi_hop` always-pass stub): Deleted `sub["multi_hop_declared"]` from `run_retrieval_check`; added `tests/eval/golden_set/test_runner_unit.py` for retrieval pass/fail, flag-independence, and replay pass/missing-fixture paths. Rationale: stub added false signal without hop validation; field stays declarative on schema/YAML. See `.dev/decision-logs/T2-requires-multi-hop.md`.
 - T4 (Slow-tier replay golden for GDPR erasure): Added `q6_replay_gdpr_erasure.yaml`, hand-authored `eval-replay-gdpr-erasure.json`, and manifest entry so `run_replay_check` runs end-to-end in nightly without live HybridRetriever. Rationale: plan §0 Flag 3 — recorded fixture exercises the previously unreachable replay lens. **Coverage gap (deferred):** no test asserts mismatch between fixture `case_id` and YAML `id` (runner does not validate that coupling).
 
