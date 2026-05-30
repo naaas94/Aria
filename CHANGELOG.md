@@ -2,7 +2,7 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
-## phase-5-doc-architecture-hygiene — 2026-05-30
+## — 2026-05-30
 
 - T4 (AUDIT_DIGEST open table sync): Synced `.dev/AUDIT_DIGEST.md` after phase-2-eval-honesty and phase-3-observability Complete. Moved **#2**, **#8**, **#18** to fixed (Phase 2 citations); updated **#10** resolution for Phase 3 G6; added Phase 3 fixed rows **G5**, **G6**, **L1**, **L7**. Left open **#9**, **#16** (product), **#19**, **#20** (no Phase 2 artifact). Rationale: closes MVP_PICKUP Phase 5 AUDIT sync without false-green on uncited rows. **Coverage gap (deferred):** no automated check that open-table rows stay aligned with CHANGELOG after future phases (plan Flag 6 deferred).
 
@@ -12,7 +12,7 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 - T3 (Architecture folder approval acknowledgment): Bumped `.dev/architecture/aria/INDEX.md` Last verified to 2026-05-25 and appended `[APPROVAL]` entry to `.dev/architecture/aria/changelog.md`. Closes MVP G10 (architecture folder commit/approve). **Coverage gap (deferred):** docs-only subtask; no automated check that approval date stays aligned with owner review cadence (kill criteria verified by `git ls-files` and `git diff` on folder).
 
-## mvp-phase4-product-defaults-ux — 2026-05-30
+## product-defaults-ux — 2026-05-30
 
 - T1 (G8 placeholder default flip, T1-amend): Changed `placeholder_api_enabled()` default from `"true"` to `"false"` in `api/config.py`; aligned OpenAPI description (`api/main.py`), `.env.example`, E2E docstring, MVP_PICKUP G8 checklist, and architecture open-questions Q3; set `ARIA_PLACEHOLDER_API=true` on `tests/unit/test_metrics.py` `client` fixture so ASGI metrics tests stay backend-independent after the flip. Rationale: live mode as baseline makes missing backends explicit instead of silent synthetic responses. See `.dev/decision-logs/T1-g8-placeholder-default.md`. **Coverage gap (deferred):** no unit test asserts `placeholder_api_enabled()` when env is unset (T4 CLI smoke forces placeholder via `env=` only).
 
@@ -24,7 +24,7 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 - T5-amend (audit remediation, CHANGELOG + pickup checklist): Restored T4 tiered changelog bullet after T2 regression; synced `.dev/MVP_PICKUP.md` Phase 4 checklist with landed T2/T3-amend/T4 work. Rationale: closes audit F-03/F-06 narrative gaps without code changes. **Coverage gap (deferred):** no automated check that MVP_PICKUP Phase 4 rows stay aligned with CHANGELOG after future subtasks (docs-only).
 
-## phase-3-observability — 2026-05-30
+## observability — 2026-05-30
 
 - Plan closure (v1.1): Marked `.dev/plans/phase-3-observability/plan.md` **Complete**; populated §8.1–§8.5 auditor handoff; refreshed `context-map.md` §Post-execution. Verification at implementation SHA `a247cfe`: 56 passed (Phase 3 test surface). Rationale: closes orchestrator handoff gate for adversarial audit. **Coverage gap (deferred):** `MVP_PICKUP.md` G5/G6 checkboxes not updated in this closure.
 
@@ -43,7 +43,7 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 - T1 (Phase 3 Prometheus metric definitions): Added `HTTP_REQUEST_DURATION`, `GRAPH_QUERY_DURATION`, and `LLM_COST_COUNTER` to `aria/observability/metrics.py` per frozen §2 contract. Rationale: downstream T2–T5 wire observe/increment calls against these symbols; defining them first avoids registration collisions. + added contract tests in `tests/unit/test_metrics.py` (`TestPhase3MetricDefinitions`).
 
-## phase-2-eval-honesty — 2026-05-30
+## eval — 2026-05-30
 
 - T6 (Plan v1.2 contract reconciliation): §2 Amendment records shipped replay test name (`test_run_replay_check_passes_with_inline_fixture`) and CI gate for `test_runner_unit.py`; see audit F-04. Rationale: closes contract drift between original §2 Typed-surface bullet and landed T2 symbol without renaming tests. **Coverage gap (deferred):** no automated check that plan §2 Amendment rows stay aligned with `test_runner_unit.py` def names after future edits.
 - T5 (Wire runner unit tests into PR CI): Added a second `pytest` line in `.github/workflows/ci.yml` golden-set step for `test_runner_unit.py` (no `-m golden`). Rationale: without CI, reintroducing the `multi_hop_declared` stub would not fail medium/slow goldens—only unit tests gate stub regression (audit F-03). **Coverage gap (deferred):** no pytest asserts that CI workflow still invokes `test_runner_unit.py` after future edits (YAML-only gate in this subtask).
@@ -53,7 +53,7 @@ All notable changes tracked in this folder are listed here (see repo root change
 - T1 (Synthetic retrieval context for medium-tier goldens): Filled `retrieved_context` in retrieval cases q1–q5 with neutral keyword-matching template text so `run_retrieval_check` passes deterministically without live HybridRetriever. Rationale: Option A from plan §0 Flag 1 — lowest infrastructure delta for eval honesty. **Coverage gap (deferred):** no golden or unit test asserts that partial or wrong `retrieved_context` fails keyword checks (T2 `test_runner_unit.py` fail path).
 - T3 (Rename CI fast-tier golden step label): Renamed the `.github/workflows/ci.yml` step from "Golden set (fast tier, includes replay)" to "Golden set (fast tier)"; pytest command and env unchanged. **Coverage gap (deferred):** no pytest asserts workflow step display names; YAML `safe_load` validation is the only automated check in scope for this subtask.
 
-## mvp-phase1-golden-wet-run — 2026-05-30
+## golden-wet-run — 2026-05-30
 
 - T8 (Plan closure and §8 auditor handoff): Marked plan v1.1 **Complete**; populated §8.1–§8.6 in `.dev/plans/mvp-phase1-golden-wet-run/plan.md`; refreshed `.dev/plans/mvp-phase1-golden-wet-run/context-map.md` with *Post-execution* staleness note (F-01); committed `.dev/audits/2026-05-30-mvp-phase1-golden-wet-run.md`. Verification at T7 HEAD (`5df123f`): 25 integration + 11 unit passed. Rationale: closes audit F-07 and F-01; F-08 remains open (deferred). **Coverage gap (deferred):** no automated check that §8.2 artifact paths remain present at HEAD after closure.
 - T7 (Audit contract reconciliation): Verified plan v1.1 §2 Amendment — contract deltas (`.dev/plans/mvp-phase1-golden-wet-run/plan.md`) binding `tests/unit/test_serve.py` (T3), `tests/unit/test_ingest_command.py` (T4), and `tests/unit/test_status.py` (T5), plus shipped stdout literals for `aria status` and `aria ingest`; closes audit F-02–F-06 without reverting T3–T5 unit coverage. Rationale: amendment documents landed behavior instead of reverting beneficial tests. **Coverage gap (deferred):** no CI guard that future edits to `status.py`/`ingest.py` stay aligned with plan §2 Amendment Logging rows (re-audit / T8 handoff responsibility).

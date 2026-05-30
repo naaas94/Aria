@@ -221,3 +221,12 @@ No `.dev/decision-logs/` directory found.
 - **Canonical one-liner (verbatim source for README):** From `architectural-patterns.md` lines 76–78: `HTTP/CLI → aria/services (query, impact)` → ingestion/agents (CLI ingest) → direct Neo4j/Chroma/LLM (executor may compress to single README line per task).
 - **Implicit contract:** MVP pickup and architecture docs use relative links `architecture/aria/` under `.dev/` in prose but path `architecture/aria/` without `.dev` in some link targets — consistent broken-link risk across `.dev/*.md`.
 - **Working tree:** Only `?? .dev/plans/` dirty; not in-scope application code.
+
+---
+
+## §Post-execution (plan v1.1 closure)
+
+- **Implementation SHA (T1–T4):** `153a51f7eedad3ff71e894928dff89ce47bb4dee`
+- **Plan closure:** `.dev/plans/phase-5-doc-architecture-hygiene/plan.md` v1.1 §8 at commit containing plan update
+- **Scout SHA staleness:** This map was generated at `ee870022`. §Orchestrator handoff notes above (CLI absent, llm/client bare-except, missing G5 histograms) are **superseded** by landed Phase 3 + Phase 5 work. Auditor entry point: plan §8, not scout prose.
+- **Landed outcomes:** T1 banner on path_to_release §1; T2 README production call graph; T3 architecture `[APPROVAL]` + INDEX `Last verified: 2026-05-25`; T4 AUDIT sync (#2/#8/#18 fixed; G5/G6/L1/L7 rows; #9/#16/#19/#20 remain open).

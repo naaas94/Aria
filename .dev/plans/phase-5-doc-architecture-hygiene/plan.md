@@ -1,7 +1,7 @@
 # Plan — phase-5-doc-architecture-hygiene
 
-**Version:** 1.0  
-**Status:** Active  
+**Version:** 1.1  
+**Status:** Complete  
 **Orchestrator skill:** orchestrator-planning v0.6  
 **Plan file:** `.dev/plans/phase-5-doc-architecture-hygiene/plan.md`
 
@@ -258,4 +258,92 @@ Each packet is self-contained (§1 task statement + §2 contracts + subtask bloc
 
 ## §8 Auditor handoff
 
-*(To be completed when plan is marked Complete. §8.1–§8.6 require a clean-checkout verification run.)*
+### §8.1 Completion snapshot
+
+- **Implementation SHA:** `153a51f7eedad3ff71e894928dff89ce47bb4dee` (T4; T1–T4 landed in order `614fcf2` → `855abcb` → `4fe003b` → `153a51f`)
+- **Closure SHA:** commit containing this plan file at **Version:** 1.1 · **Status:** Complete (§8 block)
+- **Working tree:** clean at implementation SHA (`153a51f`); verification below run before plan closure edit
+- **Verification (clean checkout at `153a51f`; doc-only plan per §2 Tests — grep contract checks, no pytest):**
+
+  PowerShell one-shot (9 checks, exit 0 = pass):
+
+  ```powershell
+  $fail = 0
+  if (-not (Select-String -Path .dev/path_to_release.md -Pattern 'Superseded \(2026_04_11\)' -Quiet)) { $fail++ }
+  if (Select-String -Path .dev/path_to_release.md -Pattern '2026-04-11' -Quiet) { $fail++ }
+  if (-not (Select-String -Path README.md -Pattern 'Production call graph:' -Quiet)) { $fail++ }
+  if (-not (Select-String -Path README.md -Pattern 'not on the production request path' -Quiet)) { $fail++ }
+  if (-not (Select-String -Path .dev/architecture/aria/changelog.md -Pattern '\[APPROVAL\]' -Quiet)) { $fail++ }
+  if (-not (Select-String -Path .dev/architecture/aria/INDEX.md -Pattern 'Last verified:    2026-05-25' -Quiet)) { $fail++ }
+  if (-not (Select-String -Path .dev/AUDIT_DIGEST.md -Pattern '\*\*2\*\*.*retrieval goldens' -Quiet)) { $fail++ }
+  if (-not (Select-String -Path .dev/AUDIT_DIGEST.md -Pattern 'G6.*LLM client' -Quiet)) { $fail++ }
+  if (Select-String -Path aria/llm/client.py -Pattern 'except Exception: pass' -Quiet) { $fail++ }
+  exit $fail
+  ```
+
+  **Result:** 9/9 passed, exit code 0 (2026-05-30)
+
+### §8.2 Artifact chain
+
+| Order | Path |
+|-------|------|
+| 1 | `.dev/plans/phase-5-doc-architecture-hygiene/context-map.md` (scout SHA `ee870022`; stale vs implementation — see §Post-execution note below) |
+| 2 | `.dev/plans/phase-5-doc-architecture-hygiene/plan.md` (v1.1 + §8) |
+| 3 | `.dev/plans/phase-5-doc-architecture-hygiene/packets/T{1..4}.md` |
+| 4 | `CHANGELOG.md` § phase-5-doc-architecture-hygiene |
+| 5 | `.dev/path_to_release.md` (T1 banner + exec summary) |
+| 6 | `README.md` (T2 call graph + orchestration caveat) |
+| 7 | `.dev/architecture/aria/changelog.md`, `.dev/architecture/aria/INDEX.md` (T3 approval) |
+| 8 | `.dev/AUDIT_DIGEST.md` (T4 sync) |
+| 9 | `.dev/architecture/aria/architectural-patterns.md` (T2 verbatim source) |
+| 10 | External gates: `.dev/plans/phase-2-eval-honesty/plan.md` (Complete), `.dev/plans/phase-3-observability/plan.md` (Complete) |
+
+All paths must resolve via `git show HEAD:<path>` at the §8.1 closure SHA.
+
+**Context-map staleness (post-execution):** Map §Orchestrator handoff notes (lines 217–219) still describe pre-Phase-3 code (`except Exception: pass`, missing G5 histograms). Implementation SHA `153a51f` supersedes those notes for AUDIT #10 / G6 / G5 state. Auditor: treat map scout claims as historical; verify against code and AUDIT fixed tables at closure SHA.
+
+### §8.3 §2 evidence (per-row)
+
+| §2 row | Landed artifact | Test / check |
+|--------|-----------------|--------------|
+| Types / interfaces | N/A (doc-only) | — |
+| Error envelope | N/A | — |
+| Naming — supersession date `2026_04_11` | `.dev/path_to_release.md:17` banner; exec summary strike-through `:11` | Grep: `Superseded (2026_04_11)` present; no `2026-04-11` in file; `CHANGELOG.md` heading `## 2026_04_11` at `:109` |
+| Naming — call graph verbatim text | `README.md:34-38` fenced block | Byte match to `architectural-patterns.md:76-78`; cross-ref link at `README.md:32` |
+| Logging | N/A | — |
+| Tests (grep spot-check policy) | §8.1 PowerShell script | 9/9 passed at `153a51f` |
+| CLI surface | N/A | — |
+| Decision log paths | N/A (no architectural tier) | — |
+
+**Subtask landed commits:**
+
+| Subtask | Commit | Files |
+|---------|--------|-------|
+| T1 | `614fcf2` | `.dev/path_to_release.md`, `CHANGELOG.md` |
+| T2 | `855abcb` | `README.md` |
+| T3 | `4fe003b` | `.dev/architecture/aria/INDEX.md`, `.dev/architecture/aria/changelog.md`, `CHANGELOG.md` |
+| T4 | `153a51f` | `.dev/AUDIT_DIGEST.md`, `CHANGELOG.md` |
+
+### §8.4 §5 disposition
+
+| Item | Status | Notes |
+|------|--------|-------|
+| §5.2 CHANGELOG heading `2026_04_11` | **closed** | T1 cross-ref; heading confirmed at `CHANGELOG.md:109` |
+| §5.2 architectural-patterns call graph stable | **closed** | README block matches `architectural-patterns.md:76-78` |
+| §5.2 11 architecture files tracked, no unstaged diffs | **closed** | T3 commit; `git ls-files .dev/architecture/aria/` → 12 paths (11 section files + INDEX/changelog) |
+| §5.2 Phase 2 + Phase 3 reach Complete | **closed** | Both plans show **Status:** Complete; T4 executed |
+| §5.2 AUDIT #10 vs G6 coupling | **closed** | Zero `except Exception: pass` in `aria/llm/client.py`; AUDIT #10 resolution cites Phase 3 G6 (`AUDIT_DIGEST.md:64`) |
+| §5.3 highest re-plan risk (T4 partial Phase 3) | **closed** | T4 left #19/#20 open (no artifact); #10 updated not false-green; no replan |
+| §5.4 banner date format T1/T2 latent coupling | **treat-as-prediction** | T1 uses underscores; T2 does not cross-link banner — auditor grep if README later cites supersession date |
+| §5.4 README orchestration vs call graph | **closed** | T2 landed both caveat (`README.md:28`) and call graph (`README.md:32-40`) |
+| §5.4 AUDIT #10 vs llm/client.py | **closed** | G6 landed Phase 3; T4 updated fixed table row #10 |
+| §5.4 path_to_release §4 E1 vs AUDIT #2 | **open** | Deliberate non-goal (T1 §1-only scope); path_to_release §4 still narrates empty-context eval gap while AUDIT #2 marked fixed — post-MVP doc cleanup |
+| Flag 6 automated doc-drift test | **open** | Deferred per §0; documented in CHANGELOG T1–T4 coverage gaps; does not block merge |
+
+### §8.5 Cold-read seeds
+
+1. `.dev/path_to_release.md` (T1 banner + preserved wet-run risks 1–5)
+2. `README.md` § Architecture (T2 orchestration caveat + production call graph)
+3. `.dev/AUDIT_DIGEST.md` open table + Phase 2/3 fixed tables (T4 sync accuracy)
+4. `.dev/architecture/aria/architectural-patterns.md` § Production call graph (T2 verbatim source)
+5. `aria/llm/client.py` (AUDIT #10 / G6 gate — confirm no silent telemetry swallows)
