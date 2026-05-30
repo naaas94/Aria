@@ -1,0 +1,30 @@
+{
+  "case_id": "eval-replay-gdpr-erasure",
+  "correlation_id": "golden-fixture-gdpr-erasure-001",
+  "recorded_at": "2026-05-25T00:00:00+00:00",
+  "aria_commit": "ee87002",
+  "request": {
+    "question": "What is the right to erasure under GDPR and how must organizations comply?"
+  },
+  "response": {
+    "answer": "Under GDPR Article 17, individuals have the right to erasure of their personal data, also known as the right to be forgotten. Organizations must delete personal data upon request when it is no longer necessary for the purpose it was collected, when consent is withdrawn, or when the data has been unlawfully processed.",
+    "sources": [
+      {
+        "id": "gdpr-article-17",
+        "title": "GDPR Article 17 — Right to Erasure",
+        "excerpt": "The data subject shall have the right to obtain from the controller the erasure of personal data."
+      },
+      {
+        "id": "gdpr-recital-65",
+        "title": "GDPR Recital 65 — Right to Erasure",
+        "excerpt": "A data subject should have the right to have personal data erased and no longer processed."
+      }
+    ],
+    "trace": {
+      "nodes_retrieved": 2,
+      "strategy": "hybrid"
+    },
+    "retrieval_strategy": "hybrid"
+  },
+  "strategy_used": "hybrid"
+}

@@ -1,0 +1,23 @@
+id: eval-replay-gdpr-erasure
+category: happy
+tier: slow
+tags: [replay, gdpr, erasure]
+description: >
+  Slow-tier replay regression for GDPR right-to-erasure query. Validates
+  run_replay_check against a committed hand-authored fixture without live
+  infrastructure. Runs in nightly (--golden-tier=slow); skipped in PR fast tier.
+input:
+  question: "What is the right to erasure under GDPR and how must organizations comply?"
+expect:
+  replay:
+    fixture_file: eval-replay-gdpr-erasure.json
+    expected_strategy: hybrid
+    min_source_count: 2
+    required_trace_keys:
+      - nodes_retrieved
+      - strategy
+    quality:
+      must_mention:
+        - erasure
+        - personal data
+      min_source_count: 2
