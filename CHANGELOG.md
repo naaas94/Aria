@@ -4,6 +4,8 @@ All notable changes tracked in this folder are listed here (see repo root change
 
 ## mvp-phase6-mvp-plus — 2026-05-30
 
+- T3 (per-step orchestration trace persistence): Each `OrchestrationGraph.execute` step (including `end`) calls `record_agent_execution` with `agent_name` `orchestration.scratch/{node}`; aggregate `orchestration.scratch` row unchanged. Rationale: `aria telemetry` can show per-node durations without a schema change. **Coverage gap (deferred):** per-step SQLite write failure does not block aggregate row (same try/except swallow as aggregate; no test forces partial N-of-N+1 failure).
+
 - T1 (orchestrated query DTO contracts): Added `orchestrated: bool = False` on `ComplianceQueryRequest` and `execution_trace: dict[str, Any] | None = None` on `ComplianceQueryResponse` in `aria/services/compliance_query.py`; `extra="forbid"` unchanged. Rationale: backward-compatible typed surface for Phase 6 routing and trace payload before T4 wires CLI/API. **Coverage gap (deferred):** no unit test asserts the new fields round-trip on request/response models — T4 owns end-to-end smoke per packet §2 Tests policy.
 
 ## — 2026-05-30
