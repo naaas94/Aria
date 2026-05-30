@@ -21,6 +21,7 @@ from aria.health.assessment import (
     full_ingest_dependencies_satisfied,
     merge_strict_connection_errors,
 )
+from aria.graph.client import Neo4jClient
 from aria.ingestion.pipeline import IngestionResult, IngestionStatus, ingest_document
 from aria.ingestion.wiring import build_full_ingest_wiring
 
@@ -40,6 +41,11 @@ def _ingestion_exit_code(result: IngestionResult) -> int:
     if result.status in (IngestionStatus.SUCCESS, IngestionStatus.SKIPPED_DUPLICATE):
         return 0
     return 1
+
+
+async def _fetch_regulation_ids(neo: Neo4jClient) -> list[str]:
+    records = await neo.execute_read("MATCH (r:Regulation) RETURN r.id AS id")
+    return [r["id"] for r in records if r.get("id")]
 
 
 def _print_result(path: Path, result: IngestionResult) -> None:
@@ -94,6 +100,15 @@ async def _ingest_async(
             force=force,
         )
         _print_result(path, result)
+        if result.graph_written:
+            reg_ids = await _fetch_regulation_ids(neo)
+            if reg_ids:
+                print(f"  regulation_ids: {', '.join(reg_ids)}")
+            else:
+                print(
+                    "  regulation_ids: (none — Regulation nodes not found; "
+                    "use seed_graph.py IDs or check entity extractor)"
+                )
         return _ingestion_exit_code(result)
     finally:
         await disconnect_app_dependencies(conns)

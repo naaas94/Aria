@@ -66,7 +66,7 @@ async def test_complete_records_llm_call_with_tokens_cost_latency(
         ("corr-req-42",),
     ).fetchone()
     assert row is not None
-    assert row["model"] == "ollama/llama3.2"
+    assert row["model"] == "gpt-4o-mini"
     assert row["prompt_tokens"] == 100
     assert row["completion_tokens"] == 50
     assert row["cost_usd"] == pytest.approx(0.002)

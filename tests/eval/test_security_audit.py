@@ -418,16 +418,28 @@ def test_seed_script_neo4j_password_default_matches_compose_dev_secret() -> None
     assert 'os.getenv("NEO4J_PASSWORD", "aria_dev_password")' in text
 
 
-def test_llm_client_default_api_key_is_placeholder_when_env_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_llm_client_uses_openai_api_key_from_env_when_llm_key_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-openai")
     client = LLMClient()
-    assert client.api_key == "not-needed"
+    assert client.model == "gpt-4o-mini"
+    assert client.api_key == "sk-test-openai"
+
+
+def test_llm_client_raises_when_no_key_for_openai_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="LLM_API_KEY"):
+        LLMClient()
 
 
 def test_llm_client_rejects_placeholder_key_for_non_local_model(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LLM_MODEL", "gpt-4o")
     monkeypatch.setenv("LLM_BASE_URL", "https://api.openai.com/v1")
     monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with pytest.raises(ValueError, match="LLM_API_KEY"):
         LLMClient()
 

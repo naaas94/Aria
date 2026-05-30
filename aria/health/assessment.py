@@ -23,7 +23,12 @@ from typing import Protocol
 import litellm
 
 from aria.graph.client import Neo4jClient
-from aria.llm.client import _require_non_placeholder_api_key
+from aria.llm.client import (
+    _require_non_placeholder_api_key,
+    resolve_llm_api_key,
+    resolve_llm_base_url,
+    resolve_llm_model,
+)
 from aria.retrieval.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -85,9 +90,9 @@ async def probe_llm_reachable() -> tuple[bool, str | None]:
 
     Uses ``LLM_MODEL``, ``LLM_BASE_URL``, ``LLM_API_KEY`` like :class:`aria.llm.client.LLMClient`.
     """
-    model = os.getenv("LLM_MODEL", "ollama/llama3.2")
-    base_url = os.getenv("LLM_BASE_URL", "http://localhost:11434")
-    api_key = os.getenv("LLM_API_KEY", "not-needed")
+    model = resolve_llm_model()
+    base_url = resolve_llm_base_url(model)
+    api_key = resolve_llm_api_key()
     try:
         _require_non_placeholder_api_key(model, base_url, api_key)
     except ValueError as exc:

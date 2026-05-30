@@ -27,6 +27,7 @@ from aria.orchestration.scratch.state import ARIAState
 client = TestClient(app)
 
 
+@pytest.mark.integration
 class TestAPIEndpoints:
     def test_health(self):
         response = client.get("/health")
@@ -81,6 +82,7 @@ class TestAPIEndpoints:
         assert response.status_code == 404
 
 
+@pytest.mark.integration
 class TestContractToGraphFlow:
     """Tests the full contract -> graph payload pipeline without Neo4j."""
 
@@ -124,6 +126,7 @@ class TestContractToGraphFlow:
         assert "Requirement" in labels
 
 
+@pytest.mark.integration
 class TestOrchestrationFlow:
     """Tests orchestration graph routing without external services."""
 
