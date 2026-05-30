@@ -25,9 +25,19 @@ Multi-agent system that ingests regulatory documents, builds a Neo4j knowledge g
 
 **Data path** — Documents (PDF, HTML, plain text) enter the ingestion pipeline, get chunked, optionally entity-extracted, then written to Neo4j as a typed graph (regulations, articles, requirements, systems, teams, jurisdictions, deadlines) and indexed in ChromaDB as vector embeddings. Queries hit a hybrid retriever (vector anchors → graph expansion → fusion/reranking) that feeds context to an LLM for grounded answers with source tracing.
 
-**Orchestration** — A custom stateful graph engine (`aria.orchestration.scratch`) drives an `ARIAState` through named nodes (supervisor, ingestion chain, entity extraction, graph builder, impact analyser). Nodes must return `ARIAState`; invalid returns set `error` instead of crashing. A LangGraph reference implementation exists under `aria.orchestration.langgraph_reference` for comparison.
+**Orchestration** — A custom stateful graph engine (`aria.orchestration.scratch`) drives an `ARIAState` through named nodes (supervisor, ingestion chain, entity extraction, graph builder, impact analyser). Nodes must return `ARIAState`; invalid returns set `error` instead of crashing. A LangGraph reference implementation exists under `aria.orchestration.langgraph_reference` for comparison. (The scratch engine is fully tested but is not on the production request path today — `POST /query` and `aria query` route through `aria.services` directly.)
 
 **Agents** — Supervisor classifies intent and delegates to specialised agents: `EntityExtractorAgent`, `GraphBuilderAgent`, `IngestionAgent`, `ImpactAnalyzerAgent`, `ReportGeneratorAgent`, each built on a shared `BaseAgent`.
+
+**Production call graph:** The actual runtime path (per [`.dev/architecture/aria/architectural-patterns.md`](.dev/architecture/aria/architectural-patterns.md)):
+
+```
+HTTP/CLI → aria/services (query, impact)
+         → ingestion.pipeline + agents (CLI ingest only)
+         → direct Neo4j / Chroma / LLM clients
+```
+
+Scratch orchestration, MCP, and LangGraph reference are real, tested subsystems but **not connected** to `api/main.py` or CLI today.
 
 ## Evaluation & Testing
 
@@ -76,6 +86,20 @@ uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
 pytest
 ```
 
+### Live mode
+
+Steps 1–6 above are the **live** path (Neo4j, Chroma, and an LLM). The code default is `ARIA_PLACEHOLDER_API=false`; set it explicitly if your shell or `.env` still overrides it:
+
+```bash
+# Live mode (requires Neo4j + Chroma + LLM from steps 3–4)
+export ARIA_PLACEHOLDER_API=false   # default when unset; shown for clarity
+aria query "Which requirements affect our systems?"
+aria query "Which requirements affect our systems?" --json   # optional contract check
+aria impact <REGULATION_ID>
+```
+
+To explore without backends (synthetic answers, `X-ARIA-Mode: placeholder`), set `ARIA_PLACEHOLDER_API=true` in `.env` or your shell.
+
 Full-stack Docker (API + DBs): `docker compose --profile full up -d`.
 
 ## CLI (`aria`)
@@ -117,8 +141,8 @@ After `pip install -e .`, the **`aria`** console script is available. It loads `
 
 ### Modes
 
-`ARIA_PLACEHOLDER_API=true` (default): `/impact` and `/query` return documented placeholders with `X-ARIA-Mode: placeholder` — no live infrastructure required.
-Set to `false` to run against Neo4j, Chroma, and an LLM; missing dependencies yield `503` with `missing_dependencies`.
+`ARIA_PLACEHOLDER_API=false` (default): `/impact` and `/query` run against Neo4j, Chroma, and an LLM; missing dependencies yield `503` with `missing_dependencies`.
+Set to `true` for placeholder/demo mode — documented placeholders with `X-ARIA-Mode: placeholder` and no live infrastructure required. See [Quickstart — Live mode](#live-mode) for a full-stack example.
 
 ### Endpoints
 

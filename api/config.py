@@ -7,7 +7,7 @@ import os
 
 def placeholder_api_enabled() -> bool:
     """When true, /impact and /query return synthetic data with ``X-ARIA-Mode: placeholder``."""
-    return os.getenv("ARIA_PLACEHOLDER_API", "true").lower() in ("1", "true", "yes")
+    return os.getenv("ARIA_PLACEHOLDER_API", "false").lower() in ("1", "true", "yes")
 
 
 def strict_schema_version_expected() -> str | None:

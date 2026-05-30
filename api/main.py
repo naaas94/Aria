@@ -100,9 +100,10 @@ def _build_fastapi() -> FastAPI:
             "GraphRAG-powered multi-agent system for regulatory compliance analysis. "
             "Ingests regulatory documents, builds a Neo4j knowledge graph, answers "
             "multi-hop compliance queries, and routes remediation tasks.\n\n"
-            "When `ARIA_PLACEHOLDER_API=true` (default), `GET /impact` and `POST /query` "
-            "return synthetic data with the `X-ARIA-Mode: placeholder` header. "
-            "Set `ARIA_PLACEHOLDER_API=false` to require live Neo4j/Chroma (and LLM for query)."
+            "When `ARIA_PLACEHOLDER_API=false` (default), `GET /impact` and `POST /query` "
+            "require live Neo4j/Chroma (and LLM for query). "
+            "Set `ARIA_PLACEHOLDER_API=true` to return synthetic data with the "
+            "`X-ARIA-Mode: placeholder` header."
         ),
         "version": "0.1.0",
         "lifespan": lifespan,

@@ -5,10 +5,10 @@ Each test sends ``POST /query`` through the ASGI app and validates:
   - Retrieval metadata (strategy, sources, trace fields)
   - Output quality (keyword presence, answer bounds)
 
-By default the app runs in placeholder mode (``ARIA_PLACEHOLDER_API=true``)
-which exercises serialization, routing, and middleware without external deps.
-In nightly CI the env is set to ``false`` with live Neo4j + Chroma so the
-same tests exercise the full hybrid/vector retrieval path.
+By default the app runs in live mode (``ARIA_PLACEHOLDER_API=false``).
+Set ``ARIA_PLACEHOLDER_API=true`` to exercise serialization, routing, and
+middleware without external deps. Nightly CI sets ``false`` with live Neo4j +
+Chroma so the same tests exercise the full hybrid/vector retrieval path.
 """
 
 from __future__ import annotations
