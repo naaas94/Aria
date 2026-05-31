@@ -45,6 +45,13 @@ from tests.fixtures.entities import HAPPY_MINIMAL_SINGLE_CHAIN
 
 client = TestClient(app)
 
+
+@pytest.fixture(autouse=True)
+def _placeholder_api_for_contract_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Shape tests assert response models, not live Neo4j/Chroma (CI has no backends)."""
+    monkeypatch.setenv("ARIA_PLACEHOLDER_API", "true")
+
+
 # Column aliases returned by the impact_by_regulation Cypher query (stable contract for consumers).
 IMPACT_BY_REGULATION_ROW_KEYS = frozenset(
     {
