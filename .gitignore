@@ -10,6 +10,7 @@ build/
 .env
 .venv/
 venv/
+.venv*/
 
 .mypy_cache/
 .ruff_cache/
