@@ -7,6 +7,7 @@ path traces without requiring external services.
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 import structlog
@@ -257,8 +258,63 @@ class TestOrchestrationTelemetry:
             assert row["status"] == "success"
             assert row["error"] is None
             assert row["duration_ms"] == pytest.approx(result.total_duration_ms)
+
+            aggregate_rows = isolated_telemetry_store._conn.execute(  # noqa: SLF001
+                "SELECT * FROM agent_executions WHERE agent_name = ?",
+                (ORCHESTRATION_SCRATCH_AGENT_NAME,),
+            ).fetchall()
+            assert len(aggregate_rows) == 1
+
+            per_step_rows = isolated_telemetry_store._conn.execute(  # noqa: SLF001
+                "SELECT * FROM agent_executions WHERE agent_name LIKE ?",
+                (f"{ORCHESTRATION_SCRATCH_AGENT_NAME}/%",),
+            ).fetchall()
+            assert len(per_step_rows) == len(result.traces)
+            assert len(per_step_rows) >= 1
+            for step in result.traces:
+                step_row = isolated_telemetry_store._conn.execute(  # noqa: SLF001
+                    "SELECT * FROM agent_executions WHERE agent_name = ?",
+                    (f"{ORCHESTRATION_SCRATCH_AGENT_NAME}/{step.node_name}",),
+                ).fetchone()
+                assert step_row is not None
         finally:
             structlog.contextvars.unbind_contextvars("request_id")
+
+    @pytest.mark.asyncio
+    async def test_execute_record_agent_execution_call_counts(self) -> None:
+        mock_store = MagicMock()
+        with patch(
+            "aria.orchestration.scratch.graph.get_telemetry_store",
+            return_value=mock_store,
+        ):
+            graph = build_default_graph()
+            tools = MockToolPorts()
+            result = await graph.execute(ARIAState(), tools)
+
+        calls = mock_store.record_agent_execution.call_args_list
+        n_steps = len(result.traces)
+        assert len(calls) >= n_steps + 1
+
+        per_step = [
+            c
+            for c in calls
+            if (name := c.kwargs.get("agent_name", "")).startswith(
+                f"{ORCHESTRATION_SCRATCH_AGENT_NAME}/"
+            )
+            and len(name) > len(ORCHESTRATION_SCRATCH_AGENT_NAME) + 1
+        ]
+        assert per_step
+
+        aggregate = [
+            c
+            for c in calls
+            if c.kwargs.get("agent_name") == ORCHESTRATION_SCRATCH_AGENT_NAME
+        ]
+        assert len(aggregate) == 1
+        assert aggregate[0].kwargs["status"] == "success"
+        assert aggregate[0].kwargs["duration_ms"] == pytest.approx(
+            result.total_duration_ms
+        )
 
     @pytest.mark.asyncio
     async def test_execute_error_records_agent_execution_row(

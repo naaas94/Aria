@@ -2,6 +2,18 @@
 
 All notable changes tracked in this folder are listed here (see repo root changelog if the project adds one later).
 
+## mvp-phase6-mvp-plus — 2026-05-30
+
+- T5 (demo script + README + Phase 6 checkboxes): Added `.dev/demo/aria-mvp-demo.sh` (status → standard query → `--orchestrated` query → `aria telemetry --hours 1`), `## Demo` in `README.md`, and marked Phase 6 items `[x]` in `.dev/MVP_PICKUP.md`. Rationale: portfolio narrative for orchestrated path without CLI/API code changes. **Coverage gap (deferred):** no pytest or shellcheck gates the demo script; flags verified manually against `aria/cli/commands/query.py` and `telemetry_cmd.py` per packet §2 Tests policy (asciinema not installed — cast recording documented in script comment only).
+
+- T4 (CLI + API orchestrated routing): Wired `aria query --orchestrated` and `POST /query` with `orchestrated: true` through `run_orchestrated_query` on live backends; placeholder gate exits 1 (CLI) / HTTP 400 (API) with frozen messages; `_success_payload` adds `execution_trace` only when not None; API sets `X-ARIA-Mode: orchestrated-live` on orchestrated live path. Rationale: opt-in orchestration trace without changing the standard query path. **Coverage gap (deferred):** no unit test asserts API 400 when `orchestrated=true` and placeholder is enabled (CLI smoke only per packet §2 Tests policy).
+
+- T2 (live MCP adapter wiring): Added `aria/services/orchestrated_query.py` with `build_mcp_adapter` and `run_orchestrated_query` (missing Neo4j/Chroma → `ComplianceQueryUnavailable`; graph errors → unavailable with `state.error`); replaced `MCPToolPortsAdapter.index_vectors` stub with `VectorStore.index_chunks` via `DocumentChunk` mapping; added `tests/unit/test_mcp_adapter.py`. Rationale: isolates orchestration wiring before T4 routes CLI/API. See `.dev/decision-logs/T2-mcp-adapter-wiring.md`. **Coverage gap (deferred):** no unit test runs full `run_orchestrated_query` success path against a mocked graph (T4 smoke).
+
+- T3 (per-step orchestration trace persistence): Each `OrchestrationGraph.execute` step (including `end`) calls `record_agent_execution` with `agent_name` `orchestration.scratch/{node}`; aggregate `orchestration.scratch` row unchanged. Rationale: `aria telemetry` can show per-node durations without a schema change. **Coverage gap (deferred):** per-step SQLite write failure does not block aggregate row (same try/except swallow as aggregate; no test forces partial N-of-N+1 failure).
+
+- T1 (orchestrated query DTO contracts): Added `orchestrated: bool = False` on `ComplianceQueryRequest` and `execution_trace: dict[str, Any] | None = None` on `ComplianceQueryResponse` in `aria/services/compliance_query.py`; `extra="forbid"` unchanged. Rationale: backward-compatible typed surface for Phase 6 routing and trace payload before T4 wires CLI/API. **Coverage gap (deferred):** no unit test asserts the new fields round-trip on request/response models — T4 owns end-to-end smoke per packet §2 Tests policy.
+
 ## — 2026-05-30
 
 - T4 (AUDIT_DIGEST open table sync): Synced `.dev/AUDIT_DIGEST.md` after phase-2-eval-honesty and phase-3-observability Complete. Moved **#2**, **#8**, **#18** to fixed (Phase 2 citations); updated **#10** resolution for Phase 3 G6; added Phase 3 fixed rows **G5**, **G6**, **L1**, **L7**. Left open **#9**, **#16** (product), **#19**, **#20** (no Phase 2 artifact). Rationale: closes MVP_PICKUP Phase 5 AUDIT sync without false-green on uncited rows. **Coverage gap (deferred):** no automated check that open-table rows stay aligned with CHANGELOG after future phases (plan Flag 6 deferred).

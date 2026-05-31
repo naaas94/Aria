@@ -268,11 +268,11 @@ class LLMClient:
                         completion_tokens=completion_tokens,
                         cost_usd=cost,
                     )
-                except Exception as exc:
+                except Exception as telemetry_exc:
                     TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm").inc()
                     logger.warning(
                         "telemetry store write failed: %s",
-                        type(exc).__name__,
+                        type(telemetry_exc).__name__,
                     )
                 logger.debug(
                     "LLM response in %.2fs (attempt %d, model=%s)",
@@ -314,11 +314,11 @@ class LLMClient:
                             cost_usd=None,
                             error_type=type(exc).__name__,
                         )
-                    except Exception as exc:
+                    except Exception as telemetry_exc:
                         TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="llm").inc()
                         logger.warning(
                             "telemetry store write failed: %s",
-                            type(exc).__name__,
+                            type(telemetry_exc).__name__,
                         )
                     LLM_CALL_COUNTER.labels(model=self.model, status="error").inc()
                     LLM_CALL_DURATION.labels(model=self.model).observe(err_elapsed_ms / 1000.0)

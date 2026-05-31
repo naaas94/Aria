@@ -26,6 +26,7 @@ from aria.orchestration.scratch.state import ARIAState
 logger = logging.getLogger(__name__)
 
 # Synthetic ``agent_name`` for ``agent_executions`` / Prometheus (scratch graph is not BaseAgent).
+# Per-step rows use ``{ORCHESTRATION_SCRATCH_AGENT_NAME}/{node}`` (slash), not BaseAgent dot names.
 ORCHESTRATION_SCRATCH_AGENT_NAME = "orchestration.scratch"
 
 NodeFunction = Callable[[ARIAState, ToolPorts], Awaitable[ARIAState]]
@@ -182,6 +183,24 @@ class OrchestrationGraph:
                 )
             )
 
+            step_status = "error" if trace_error else "success"
+            try:
+                get_telemetry_store().record_agent_execution(
+                    request_id=structlog.contextvars.get_contextvars().get(
+                        "request_id"
+                    ),
+                    agent_name=f"{ORCHESTRATION_SCRATCH_AGENT_NAME}/{current}",
+                    status=step_status,
+                    error=trace_error,
+                    duration_ms=elapsed_ms,
+                )
+            except Exception as exc:
+                TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="orchestration").inc()
+                logger.warning(
+                    "record_agent_execution failed for scratch orchestration step: %s",
+                    type(exc).__name__,
+                )
+
             if state.has_error and next_node != "end":
                 next_node = "end"
 
@@ -193,6 +212,22 @@ class OrchestrationGraph:
             result.traces.append(
                 StepTrace(node_name="end", duration_ms=0, next_node="done")
             )
+            try:
+                get_telemetry_store().record_agent_execution(
+                    request_id=structlog.contextvars.get_contextvars().get(
+                        "request_id"
+                    ),
+                    agent_name=f"{ORCHESTRATION_SCRATCH_AGENT_NAME}/end",
+                    status="success",
+                    error=None,
+                    duration_ms=0,
+                )
+            except Exception as exc:
+                TELEMETRY_WRITE_ERRORS_COUNTER.labels(source="orchestration").inc()
+                logger.warning(
+                    "record_agent_execution failed for scratch orchestration step: %s",
+                    type(exc).__name__,
+                )
 
         if step_count >= self._max_steps and current != "end":
             state.error = f"Orchestration exceeded max steps ({self._max_steps})"

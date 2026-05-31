@@ -27,6 +27,7 @@ from aria.services.compliance_query import (
     ComplianceQueryUnavailable,
     run_compliance_query,
 )
+from aria.services.orchestrated_query import run_orchestrated_query
 
 
 def _print_human_success(outcome: ComplianceQuerySuccess) -> None:
@@ -45,13 +46,16 @@ def _print_human_success(outcome: ComplianceQuerySuccess) -> None:
 
 
 def _success_payload(outcome: ComplianceQuerySuccess) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "answer": outcome.response.answer,
         "sources": outcome.response.sources,
         "retrieval_strategy": outcome.response.retrieval_strategy,
         "trace": outcome.response.trace,
         "aria_mode": outcome.aria_mode,
     }
+    if outcome.response.execution_trace is not None:
+        payload["execution_trace"] = outcome.response.execution_trace
+    return payload
 
 
 async def _query_async(
@@ -61,21 +65,33 @@ async def _query_async(
     use_graph_rag: bool,
     top_k: int,
     as_json: bool,
+    as_orchestrated: bool,
 ) -> int:
     req = ComplianceQueryRequest(
         question=question,
         regulation_id=regulation_id,
         use_graph_rag=use_graph_rag,
         top_k=top_k,
+        orchestrated=as_orchestrated,
     )
     use_placeholder = placeholder_api_enabled()
+    if as_orchestrated and use_placeholder:
+        print(
+            "Orchestrated mode requires live backends. Set ARIA_PLACEHOLDER_API=false.",
+            file=sys.stderr,
+        )
+        return 1
+
     if use_placeholder:
         conns = AppConnections()
         outcome = await run_compliance_query(req, conns, use_placeholder=True)
     else:
         conns = await connect_app_dependencies(strict=True)
         try:
-            outcome = await run_compliance_query(req, conns, use_placeholder=False)
+            if as_orchestrated:
+                outcome = await run_orchestrated_query(req, conns)
+            else:
+                outcome = await run_compliance_query(req, conns, use_placeholder=False)
         finally:
             await disconnect_app_dependencies(conns)
 
@@ -128,6 +144,16 @@ def query(
         bool,
         typer.Option("--json", help="Print JSON (success or service-unavailable body)."),
     ] = False,
+    as_orchestrated: Annotated[
+        bool,
+        typer.Option(
+            "--orchestrated/--no-orchestrated",
+            help=(
+                "Route query through OrchestrationGraph (vector-only; exposes agent trace). "
+                "Requires live backends."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Answer a compliance question using the same service as the HTTP API (no HTTP)."""
     code = asyncio.run(
@@ -137,6 +163,7 @@ def query(
             use_graph_rag=use_graph_rag,
             top_k=top_k,
             as_json=as_json,
+            as_orchestrated=as_orchestrated,
         )
     )
     raise typer.Exit(code)

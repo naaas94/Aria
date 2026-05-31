@@ -422,7 +422,11 @@ def test_llm_client_uses_openai_api_key_from_env_when_llm_key_unset(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-openai")
+    monkeypatch.setenv("LLM_MODEL", "gpt-4o-mini")
+    monkeypatch.setenv("LLM_BASE_URL", "https://api.openai.com/v1")
     client = LLMClient()
     assert client.model == "gpt-4o-mini"
     assert client.api_key == "sk-test-openai"
@@ -431,6 +435,10 @@ def test_llm_client_uses_openai_api_key_from_env_when_llm_key_unset(
 def test_llm_client_raises_when_no_key_for_openai_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    monkeypatch.setenv("LLM_MODEL", "gpt-4o-mini")
+    monkeypatch.setenv("LLM_BASE_URL", "https://api.openai.com/v1")
     with pytest.raises(ValueError, match="LLM_API_KEY"):
         LLMClient()
 
